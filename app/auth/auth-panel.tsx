@@ -15,8 +15,8 @@ type ViewMode = "signin" | "onboarding" | AccountMode;
 type TabMode = "signin" | AccountMode;
 
 const accountHelp: Record<AccountMode, string> = {
-  company: "Vas a crear una cuenta de empresa para contratar cursos, comprar plazas y generar claves de acceso para empleados.",
-  employee: "Vas a crear una cuenta de empleado para cursar una formación que tu empresa ya ha contratado mediante una clave."
+  company: "Create a company account to purchase courses, buy seats and generate access keys for employees.",
+  employee: "Create a student account to take training your company has already purchased with an access key."
 };
 
 function getAuthErrorMessage(error: string | null) {
@@ -25,10 +25,10 @@ function getAuthErrorMessage(error: string | null) {
   }
 
   if (error === "email-exists") {
-    return "Ya existe una cuenta con este email. Inicia sesión.";
+    return "An account with this email already exists. Sign in.";
   }
 
-  return "Revisa los datos introducidos y vuelve a intentarlo.";
+  return "Check the details and try again.";
 }
 
 export function AuthPanel() {
@@ -49,7 +49,7 @@ export function AuthPanel() {
     const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (signInError) {
-      setError("Revisa los datos introducidos y vuelve a intentarlo.");
+      setError("Check the details and try again.");
       return;
     }
 
@@ -72,7 +72,7 @@ export function AuthPanel() {
       <div className="mx-auto text-center">
         <p className="text-5xl font-medium tracking-normal text-slate-950 sm:text-6xl">GlossaAI</p>
         <h1 className="mt-8 text-4xl font-normal tracking-normal text-slate-950 sm:text-5xl">
-          Domina cualquier idioma con un profesor 24/7
+          Master any language with a 24/7 teacher
         </h1>
       </div>
 
@@ -80,21 +80,21 @@ export function AuthPanel() {
         <AccountButton
           currentMode={view}
           icon={Building2}
-          label="Empresa"
+          label="Company"
           mode="company"
           onClick={() => chooseAccount("company")}
         />
         <AccountButton
           currentMode={view}
           icon={UserRound}
-          label="Empleado"
+          label="Student"
           mode="employee"
           onClick={() => chooseAccount("employee")}
         />
         <AccountButton
           currentMode={view}
           icon={LogIn}
-          label="Iniciar sesión"
+          label="Sign in"
           mode="signin"
           onClick={() => chooseSignIn()}
         />
@@ -109,24 +109,24 @@ export function AuthPanel() {
 
         {view === "signin" ? (
           <div>
-            <h2 className="text-3xl font-semibold text-slate-950">Iniciar sesión</h2>
+            <h2 className="text-3xl font-semibold text-slate-950">Sign in</h2>
             <form
               action={(formData) => startTransition(() => void handleLogin(formData))}
               className="mt-7 space-y-5"
             >
-              <Field label="Email" name="email" type="email" placeholder="tu@email.com" />
-              <Field label="Contraseña" name="password" type="password" placeholder="Tu contraseña" />
+              <Field label="Email" name="email" type="email" placeholder="you@email.com" />
+              <Field label="Password" name="password" type="password" placeholder="Your password" />
               <Button className="h-12 w-full text-base" disabled={isPending} type="submit">
                 {isPending ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}
-                Entrar
+                Sign in
               </Button>
               <Button
-                className="h-12 w-full border-slate-950 text-base"
+                className="h-12 w-full border-orange-300 text-base hover:bg-orange-50"
                 onClick={() => setView("onboarding")}
                 type="button"
                 variant="secondary"
               >
-                Crear cuenta
+                Create account
               </Button>
             </form>
           </div>
@@ -134,26 +134,26 @@ export function AuthPanel() {
 
         {view === "onboarding" ? (
           <div>
-            <h2 className="text-3xl font-semibold text-slate-950">Crear cuenta</h2>
+            <h2 className="text-3xl font-semibold text-slate-950">Create account</h2>
             <p className="mt-3 text-base leading-7 text-slate-600">
-              Elige qué necesitas hacer ahora para crear el tipo de cuenta correcto.
+              Choose the account type you need.
             </p>
             <div className="mt-7 grid gap-3">
               <OnboardingChoice
-                description="Quiero cursar una formación proporcionada por mi empresa y tengo o recibiré una clave de acceso."
+                description="I want to take training provided by my company and I have or will receive an access key."
                 icon={UserRound}
-                label="Soy empleado"
+                label="I am a student"
                 onClick={() => chooseAccount("employee")}
               />
               <OnboardingChoice
-                description="Quiero contratar cursos para mi equipo, comprar plazas y generar claves para empleados."
+                description="I want to purchase courses for my team, buy seats and generate employee keys."
                 icon={Building2}
-                label="Soy empresa"
+                label="I am a company"
                 onClick={() => chooseAccount("company")}
               />
             </div>
             <Button className="mt-5 h-11 w-full" onClick={() => setView("signin")} type="button" variant="ghost">
-              Volver a iniciar sesión
+              Back to sign in
             </Button>
           </div>
         ) : null}
@@ -162,13 +162,13 @@ export function AuthPanel() {
           <RegisterBlock
             action={registerCompany}
             help={accountHelp.company}
-            title="Crear cuenta de empresa"
-            submitLabel="Crear empresa"
+            title="Create company account"
+            submitLabel="Create company"
           >
-            <Field label="Nombre de la empresa" name="companyName" placeholder="Acme Learning SL" />
-            <Field label="Nombre del administrador" name="fullName" placeholder="Pepe Ramos" />
-            <Field label="Email corporativo" name="email" type="email" placeholder="admin@empresa.com" />
-            <Field label="Contraseña" name="password" type="password" placeholder="Mínimo 8 caracteres" />
+            <Field label="Company name" name="companyName" placeholder="Acme Learning Ltd" />
+            <Field label="Admin name" name="fullName" placeholder="Alex Ramos" />
+            <Field label="Company email" name="email" type="email" placeholder="admin@company.com" />
+            <Field label="Password" name="password" type="password" placeholder="Minimum 8 characters" />
           </RegisterBlock>
         ) : null}
 
@@ -176,12 +176,12 @@ export function AuthPanel() {
           <RegisterBlock
             action={registerEmployee}
             help={accountHelp.employee}
-            title="Crear cuenta de empleado"
-            submitLabel="Crear empleado"
+            title="Create student account"
+            submitLabel="Create student"
           >
-            <Field label="Nombre completo" name="fullName" placeholder="Laura García" />
-            <Field label="Email" name="email" type="email" placeholder="laura@empresa.com" />
-            <Field label="Contraseña" name="password" type="password" placeholder="Mínimo 8 caracteres" />
+            <Field label="Full name" name="fullName" placeholder="Laura Garcia" />
+            <Field label="Email" name="email" type="email" placeholder="laura@company.com" />
+            <Field label="Password" name="password" type="password" placeholder="Minimum 8 characters" />
           </RegisterBlock>
         ) : null}
       </div>
@@ -234,7 +234,7 @@ function OnboardingChoice({
       onClick={onClick}
       type="button"
     >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-slate-950 text-white">
+      <span className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white">
         <Icon size={18} />
       </span>
       <span>

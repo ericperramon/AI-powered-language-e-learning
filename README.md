@@ -33,7 +33,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 supabase/schema.sql
 ```
 
-4. Crea al menos un curso activo en Supabase.
+4. Crea al menos un curso activo en Supabase. Para probar el flujo de alumno completo, añade también unidades, lecciones, una lección de resumen con `lesson_type = 'text'` y `pdf_url`, y una lección final de tipo `exam` o con `requires_exam`.
 
 5. Arranca la app:
 
@@ -49,6 +49,8 @@ npm run dev
 4. Registra un empleado.
 5. Inicia sesión con el empleado.
 6. Canjea una key libre desde el dashboard.
+7. Pulsa `Continuar` en el curso matriculado.
+8. Recorre el flujo de alumno: vídeo, ejercicios, resumen PDF separado y prueba de fin de unidad con mínimo del 80%.
 
 ## Comandos verificados
 

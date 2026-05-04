@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BookOpen, Building2, CheckCircle2, Copy, KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { purchaseCourse, redeemAccessKey, signOut } from "@/app/dashboard/actions";
@@ -43,6 +44,7 @@ type AccessKeyRow = {
 };
 
 type EnrollmentRow = {
+  course_id: string;
   status: string;
   progress_percentage: number | string;
   courses:
@@ -98,20 +100,20 @@ export default async function DashboardPage({
         <div>
           <p className="text-sm font-medium text-slate-500">GlossaAI Learning</p>
           <h1 className="mt-2 text-3xl font-semibold text-slate-950">
-            {profile.role === "admin" ? "Panel de empresa" : "Panel de empleado"}
+            {profile.role === "admin" ? "Company dashboard" : "Student dashboard"}
           </h1>
         </div>
         <form action={signOut}>
           <Button variant="secondary" type="submit">
             <LogOut size={16} />
-            Salir
+            Sign out
           </Button>
         </form>
       </header>
 
       {params.success ? (
         <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Operación completada correctamente.
+          Operation completed successfully.
         </div>
       ) : null}
       {params.error ? (
@@ -124,14 +126,14 @@ export default async function DashboardPage({
         <Card>
           <CardHeader>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-slate-950 text-white">
+              <div className="brand-accent-bg flex h-10 w-10 items-center justify-center rounded-md text-white">
                 {profile.role === "admin" ? <Building2 size={18} /> : <ShieldCheck size={18} />}
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">
                   {profile.full_name ?? profile.email}
                 </h2>
-                <p className="text-sm text-slate-500">{profile.role === "admin" ? "Empresa" : "Empleado"}</p>
+                <p className="text-sm text-slate-500">{profile.role === "admin" ? "Company" : "Student"}</p>
               </div>
             </div>
           </CardHeader>
@@ -154,27 +156,27 @@ function CompanyPanel({ courses }: { courses: Course[] }) {
   return (
     <form action={purchaseCourse} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="courseId">Curso disponible</Label>
+        <Label htmlFor="courseId">Available course</Label>
         <Select id="courseId" name="courseId" required>
-          <option value="">Selecciona un curso</option>
+          <option value="">Select a course</option>
           {courses.map((course) => (
             <option key={course.id} value={course.id}>
-              {course.title} · {course.level ?? "Nivel sin definir"}
+              {course.title} · {course.level ?? "Level not set"}
             </option>
           ))}
         </Select>
       </div>
       <div className="space-y-2">
-        <Label htmlFor="licenses">Keys para empleados</Label>
+        <Label htmlFor="licenses">Employee keys</Label>
         <Input id="licenses" min={1} max={100} name="licenses" required type="number" defaultValue={5} />
       </div>
       <Button className="w-full" disabled={courses.length === 0} type="submit">
         <KeyRound size={16} />
-        Comprar y generar keys
+        Purchase and generate keys
       </Button>
       {courses.length === 0 ? (
         <p className="text-sm leading-6 text-slate-500">
-          No hay cursos activos en la base de datos. Crea un curso en Supabase para continuar.
+          There are no active courses in the database. Create a course in Supabase to continue.
         </p>
       ) : null}
     </form>
@@ -185,12 +187,12 @@ function EmployeePanel() {
   return (
     <form action={redeemAccessKey} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="code">Clave de acceso</Label>
+        <Label htmlFor="code">Access key</Label>
         <Input id="code" name="code" placeholder="AB12CD34EF56" required />
       </div>
       <Button className="w-full" type="submit">
         <KeyRound size={16} />
-        Canjear clave
+        Redeem key
       </Button>
     </form>
   );
@@ -214,8 +216,8 @@ async function CompanyKeys({ companyId }: { companyId: string | null }) {
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-lg font-semibold text-slate-950">Keys generadas</h2>
-        <p className="text-sm text-slate-500">Usa una key libre para probar el registro de empleado.</p>
+        <h2 className="text-lg font-semibold text-slate-950">Generated keys</h2>
+        <p className="text-sm text-slate-500">Use an available key to test student registration.</p>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
@@ -231,7 +233,7 @@ async function CompanyKeys({ companyId }: { companyId: string | null }) {
               >
                 <div>
                   <p className="font-mono text-sm font-semibold text-slate-950">{key.code}</p>
-                  <p className="text-sm text-slate-500">{course?.title ?? "Curso"}</p>
+                  <p className="text-sm text-slate-500">{course?.title ?? "Course"}</p>
                 </div>
                 <div className="flex min-w-0 items-start gap-2 text-sm text-slate-500 sm:max-w-[260px] sm:justify-end sm:text-right">
                   {key.used_at ? (
@@ -240,10 +242,10 @@ async function CompanyKeys({ companyId }: { companyId: string | null }) {
                     <Copy className="mt-0.5 shrink-0" size={16} />
                   )}
                   <div className="min-w-0">
-                    <p className="font-medium text-slate-700">{key.used_at ? "Usada" : "Libre"}</p>
+                    <p className="font-medium text-slate-700">{key.used_at ? "Used" : "Available"}</p>
                     {key.used_at ? (
                       <p className="mt-1 break-words leading-5">
-                        {usedBy?.full_name ?? "Usuario sin nombre"}
+                        {usedBy?.full_name ?? "Unnamed user"}
                         {usedBy?.email ? <span className="block">{usedBy.email}</span> : null}
                       </p>
                     ) : null}
@@ -252,7 +254,7 @@ async function CompanyKeys({ companyId }: { companyId: string | null }) {
               </div>
             );
           })}
-          {keys.length === 0 ? <p className="text-sm text-slate-500">Todavía no hay keys generadas.</p> : null}
+          {keys.length === 0 ? <p className="text-sm text-slate-500">No keys have been generated yet.</p> : null}
         </div>
       </CardContent>
     </Card>
@@ -263,7 +265,7 @@ async function EmployeeEnrollments() {
   const supabase = await createSupabaseServerClient();
   const { data: enrollmentsData } = await supabase
     .from("enrollments")
-    .select("status, progress_percentage, courses(title, level, target_language)")
+    .select("course_id, status, progress_percentage, courses(title, level, target_language)")
     .order("started_at", { ascending: false })
     .returns<EnrollmentRow[]>();
   const enrollments = enrollmentsData ?? [];
@@ -271,29 +273,36 @@ async function EmployeeEnrollments() {
   return (
     <Card>
       <CardHeader>
-        <h2 className="text-lg font-semibold text-slate-950">Mis cursos</h2>
-        <p className="text-sm text-slate-500">Aquí aparecerá el curso al canjear una key válida.</p>
+        <h2 className="text-lg font-semibold text-slate-950">My courses</h2>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {enrollments.map((enrollment, index) => {
+          {enrollments.map((enrollment) => {
             const course = Array.isArray(enrollment.courses) ? enrollment.courses[0] : enrollment.courses;
             return (
-              <div className="rounded-md border border-slate-200 p-4" key={index}>
-                <div className="flex items-start gap-3">
-                  <BookOpen className="mt-0.5 text-slate-500" size={18} />
-                  <div>
-                    <h3 className="font-semibold text-slate-950">{course?.title ?? "Curso"}</h3>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {course?.target_language ?? "Idioma"} · {course?.level ?? "Nivel"} ·{" "}
-                      {Number(enrollment.progress_percentage).toFixed(0)}%
-                    </p>
+              <div className="rounded-md border border-slate-200 p-4" key={enrollment.course_id}>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <BookOpen className="mt-0.5 text-slate-500" size={18} />
+                    <div>
+                      <h3 className="font-semibold text-slate-950">{course?.title ?? "Course"}</h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {course?.target_language ?? "Language"} · {course?.level ?? "Level"} ·{" "}
+                        {Number(enrollment.progress_percentage).toFixed(0)}%
+                      </p>
+                    </div>
                   </div>
+                  <Link
+                    className="brand-accent-bg inline-flex h-10 items-center justify-center rounded-md px-4 text-sm font-medium text-white"
+                    href={`/dashboard/courses/${enrollment.course_id}`}
+                  >
+                    Continue
+                  </Link>
                 </div>
               </div>
             );
           })}
-          {enrollments.length === 0 ? <p className="text-sm text-slate-500">No tienes cursos activos todavía.</p> : null}
+          {enrollments.length === 0 ? <p className="text-sm text-slate-500">You do not have active courses yet.</p> : null}
         </div>
       </CardContent>
     </Card>
