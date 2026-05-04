@@ -42,13 +42,16 @@
 - `npm run build`: build de produccion.
 - `npm run start`: servidor de produccion.
 - `npm run lint`: comprobacion de lint con ESLint.
-- Nota: `npm run lint` y `npm run build` estan verificados en el scaffold actual.
+- `npm test`: tests unitarios con Vitest ubicados en `unit-test/`.
+- Nota: `npm test`, `npm run lint` y `npm run build` estan verificados en el scaffold actual.
 
 ## Configuracion
 - Variables requeridas en entorno:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
   - `SUPABASE_SERVICE_ROLE_KEY` necesaria solo en servidor para crear empresas, roles admin, paquetes y claves.
+  - `N8N_ASSISTANT_TEXT_WEBHOOK_URL` necesaria solo en servidor para reenviar texto del asistente IA al webhook de n8n.
+  - `N8N_ASSISTANT_AUDIO_WEBHOOK_URL` necesaria solo en servidor para reenviar audio del asistente IA al webhook de n8n.
   - Claves del proveedor IA elegido.
 
 ## Notas tecnicas
@@ -58,3 +61,4 @@
 - No exponer claves privadas en cliente, logs ni documentacion publica.
 - Si se define esquema PostgreSQL, documentar tablas principales, RLS y migraciones.
 - Si se implementa IA, registrar proveedor, modelo, coste estimado, limites de uso y estrategia de seguridad.
+- Los webhooks de n8n del asistente deben configurarse en servidor mediante `N8N_ASSISTANT_TEXT_WEBHOOK_URL` y `N8N_ASSISTANT_AUDIO_WEBHOOK_URL`; no exponerlos como variables `NEXT_PUBLIC_*`.
