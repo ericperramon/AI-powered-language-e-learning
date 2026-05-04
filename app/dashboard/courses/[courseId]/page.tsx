@@ -219,12 +219,16 @@ export default async function CoursePage({
                         </p>
                       </div>
                     </div>
-                    {examLesson && testUnlocked ? (
+                    {examLesson && (testUnlocked || unitCompleted) ? (
                       <Link
-                        className="brand-accent-bg inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium text-white"
+                        className={`inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium ${
+                          unitCompleted
+                            ? "border border-slate-200 bg-white text-slate-950 hover:bg-slate-50"
+                            : "brand-accent-bg text-white"
+                        }`}
                         href={`/dashboard/courses/${course.id}/lessons/${examLesson.id}?stage=test`}
                       >
-                        Start test
+                        {unitCompleted ? "Review test" : "Start test"}
                       </Link>
                     ) : (
                       <span className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-500">

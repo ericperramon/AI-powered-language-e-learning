@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AiAssistant } from "@/components/ai-assistant";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +14,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {children}
+        <AiAssistant />
+      </body>
     </html>
   );
 }
