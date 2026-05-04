@@ -8,6 +8,7 @@ El producto combina contenido educativo, un asistente IA tipo “profesor 24/7�
 El proyecto está en fase de definición conceptual / pre-MVP.
 Actualmente existen flujos generales de la plataforma, una idea clara del asistente IA y una propuesta de generación de contenido educativo mediante inteligencia artificial.
 Existe un scaffold inicial de aplicación Next.js con pantalla de acceso centrada, login, onboarding para elegir tipo de cuenta, registro de empresa, registro de empleado, panel de empresa, compra simulada de cursos con generación de claves y canje de claves por empleados.
+El panel del alumno ya enlaza cada matrícula con un flujo navegable de curso en `/dashboard/courses/[courseId]`: unidades ordenadas, lecciones bloqueadas hasta completar la anterior, paso de vídeo, paso de ejercicios, lección de resumen PDF y prueba puntuable final con umbral mínimo del 80%.
 Existe un primer esquema SQL en `supabase/schema.sql` para Supabase/PostgreSQL orientado a una plataforma B2B con empresas, empleados, cursos, paquetes de licencias, claves de acceso, progreso, ejercicios, asistente IA, RAG y certificados.
 El esquema mantiene RLS activo y enlaza `public.profiles` con `auth.users`; queda pendiente validarlo contra una instancia real de Supabase y definir las migraciones operativas.
 
@@ -41,8 +42,22 @@ El sistema se divide en varios bloques:
 4. El empleado crea una cuenta de tipo alumno y queda autenticado automáticamente.
 5. El empleado canjea una clave con `redeem_course_key`.
 6. El panel del empleado muestra la matrícula creada.
+7. El alumno pulsa `Continuar` en una matrícula y entra en `/dashboard/courses/[courseId]`.
+8. El curso muestra unidades y lecciones por `sort_order`; solo está disponible la primera lección o la siguiente a una lección completada.
+9. En cada lección, el alumno completa primero el vídeo y después los ejercicios.
+10. Al completar los ejercicios, se actualiza `lesson_progress` y el porcentaje de `enrollments`.
+11. Al final de la unidad, una lección de tipo `text` con `pdf_url` actúa como resumen PDF.
+12. Después del resumen, una lección de tipo `exam` o con `requires_exam` actúa como prueba puntuable.
+13. Si la prueba alcanza al menos el 80%, se marca la unidad como superada en `unit_progress` y se desbloquea la siguiente unidad.
 
 La pantalla de acceso muestra login por defecto. Si el usuario pulsa `Crear cuenta`, aparece un onboarding para elegir entre cuenta de empleado o cuenta de empresa. Si pulsa directamente `Empresa` o `Empleado`, se muestra el formulario correspondiente con texto de ayuda sobre el tipo de cuenta.
+
+## Flujo de contenido del alumno
+- El dashboard del empleado lista las matrículas y permite continuar un curso.
+- La página del curso agrupa el contenido por unidades y calcula bloqueos a partir de `lesson_progress` y `unit_progress`.
+- Las lecciones normales siguen el orden: vídeo, ejercicios y vuelta al curso para continuar con la siguiente lección.
+- El cierre de unidad se representa con dos pasos separados: una lección de resumen con `lesson_type = 'text'` y `pdf_url`, seguida de una lección de examen con `lesson_type = 'exam'`, `requires_exam = true` y una prueba puntuable mínima del 80%.
+- El contenido educativo real de vídeos, ejercicios, PDF y pruebas está pendiente de carga por curso; la interfaz muestra placeholders hasta que se incorpore.
 
 ## Restricciones y decisiones actuales
 - La IA es el elemento diferencial del producto.
@@ -68,3 +83,4 @@ La pantalla de acceso muestra login por defecto. Si el usuario pulsa `Crear cuen
 - Definir si los administradores de empresa podrán ver conversaciones IA de empleados o solo métricas agregadas.
 - Definir el flujo transaccional de generación de claves para consumir licencias compradas sin exceder paquetes.
 - Validar el flujo real con un proyecto Supabase configurado y al menos un curso activo creado.
+- Cargar contenido real de unidades, lecciones, vídeos, ejercicios, PDFs y pruebas para comprobar el flujo de alumno extremo a extremo.

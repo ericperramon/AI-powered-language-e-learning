@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "GlossaAI Learning",
-  description: "Plataforma e-learning B2B para aprendizaje de idiomas con IA"
+  description: "B2B e-learning platform for AI-powered language learning"
 };
 
 export default function RootLayout({
@@ -12,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="en">
       <body>{children}</body>
     </html>
   );
