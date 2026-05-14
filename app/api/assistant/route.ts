@@ -5,37 +5,30 @@ import {
   normalizeWebhookResponse,
   readWebhookError
 } from "@/lib/assistant/webhook";
+import {
+  buildAssistantSystemPrompt,
+  type AssistantCourseContext
+} from "@/lib/assistant/system-prompt";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const contentType = request.headers.get("content-type") ?? "";
-    const isAudioRequest = contentType.includes("multipart/form-data");
-    const webhookUrl = isAudioRequest
-      ? process.env.N8N_ASSISTANT_AUDIO_WEBHOOK_URL
-      : process.env.N8N_ASSISTANT_TEXT_WEBHOOK_URL;
+    const webhookUrl = process.env.N8N_ASSISTANT_TEXT_WEBHOOK_URL;
 
     if (!webhookUrl) {
       return NextResponse.json(
-        {
-          error: `Missing ${
-            isAudioRequest ? "N8N_ASSISTANT_AUDIO_WEBHOOK_URL" : "N8N_ASSISTANT_TEXT_WEBHOOK_URL"
-          } server environment variable.`
-        },
+        { error: "Missing N8N_ASSISTANT_TEXT_WEBHOOK_URL server environment variable." },
         { status: 500 }
       );
     }
 
-    const webhookType = isAudioRequest ? "audio" : "text";
-    const upstreamResponse = isAudioRequest
-      ? await forwardMultipartRequest(request, webhookUrl)
-      : await forwardJsonRequest(request, webhookUrl);
+    const upstreamResponse = await forwardJsonRequest(request, webhookUrl);
 
     if (!upstreamResponse.ok) {
       return NextResponse.json(
         {
-          error: `The n8n ${webhookType} webhook returned ${upstreamResponse.status}.`,
+          error: `The n8n text webhook returned ${upstreamResponse.status}.`,
           details: await readWebhookError(upstreamResponse)
         },
         { status: 502 }
@@ -62,27 +55,17 @@ export async function POST(request: Request) {
 }
 
 async function forwardJsonRequest(request: Request, webhookUrl: string) {
-  const payload = await request.json();
+  const payload = (await request.json()) as {
+    courseContext?: AssistantCourseContext;
+    [key: string]: unknown;
+  };
+
+  const { courseContext, ...rest } = payload;
+  const systemPrompt = buildAssistantSystemPrompt(courseContext ?? null);
 
   return fetch(webhookUrl, {
     method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
-}
-
-async function forwardMultipartRequest(request: Request, webhookUrl: string) {
-  const incomingFormData = await request.formData();
-  const outgoingFormData = new FormData();
-
-  incomingFormData.forEach((value, key) => {
-    outgoingFormData.append(key, value);
-  });
-
-  return fetch(webhookUrl, {
-    method: "POST",
-    body: outgoingFormData
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...rest, systemPrompt })
   });
 }

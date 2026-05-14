@@ -4,6 +4,8 @@ import { ArrowLeft, BookOpen, CheckCircle2, FileText, Lock, PlayCircle, Trophy }
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AssistantContextSetter } from "@/components/assistant-context-setter";
+import type { AssistantCourseContext } from "@/lib/assistant/system-prompt";
 
 type Course = {
   id: string;
@@ -121,8 +123,25 @@ export default async function CoursePage({
   const lessonProgress = new Map((lessonProgressData ?? []).map((progress) => [progress.lesson_id, progress]));
   const unitProgress = new Map((unitProgressData ?? []).map((progress) => [progress.unit_id, progress]));
 
+  const assistantContext: AssistantCourseContext = {
+    course: { title: course.title, target_language: course.target_language, level: course.level },
+    units: units.map((unit) => ({
+      id: unit.id,
+      title: unit.title,
+      sort_order: unit.sort_order,
+      description: unit.description,
+      lessons: unit.lessons
+        .filter((l) => l.lesson_type !== "exam")
+        .map((l) => ({ id: l.id, title: l.title, sort_order: l.sort_order }))
+    })),
+    currentUnit: null,
+    previousUnit: null,
+    currentUnitProgress: 0
+  };
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-5 py-6 sm:px-8">
+      <AssistantContextSetter courseContext={assistantContext} />
       <div className="mb-5">
         <Link className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950" href="/dashboard">
           <ArrowLeft size={16} />

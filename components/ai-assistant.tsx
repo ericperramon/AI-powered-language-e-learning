@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Keyboard, Mic, Send, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAssistantContext } from "@/contexts/assistant-context";
 
 type ConversationMode = "text" | "voice";
 type AssistantStatus = "idle" | "listening" | "sending" | "replying" | "error";
@@ -14,44 +15,13 @@ type ChatMessage = {
   audioUrl?: string;
 };
 
-type SpeechRecognitionConstructor = new () => SpeechRecognition;
-type BrowserAudioContextConstructor = typeof AudioContext;
+type RealtimeEvent = { type: string; [key: string]: unknown };
 
-type SpeechRecognition = {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  onresult: ((event: SpeechRecognitionEvent) => void) | null;
-  onerror: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-type SpeechRecognitionEvent = {
-  results: {
-    length: number;
-    [index: number]: {
-      isFinal: boolean;
-      [index: number]: {
-        transcript: string;
-      };
-    };
-  };
-};
-
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-    webkitAudioContext?: BrowserAudioContextConstructor;
-  }
-}
-
-const AUTO_SEND_SILENCE_MS = 1300;
-const SPEECH_VOLUME_THRESHOLD = 0.012;
 const WELCOME_MESSAGE = "Hi! How can I help you?";
 
 export function AiAssistant() {
+  const { courseContext } = useAssistantContext();
+
   const [isExpanded, setIsExpanded] = useState(false);
   const [mode, setMode] = useState<ConversationMode | null>(null);
   const [status, setStatus] = useState<AssistantStatus>("idle");
@@ -59,23 +29,15 @@ export function AiAssistant() {
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [welcomeTime] = useState(() => getCurrentTime());
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const audioChunksRef = useRef<BlobPart[]>([]);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const silenceFrameRef = useRef<number | null>(null);
-  const transcriptSilenceTimeoutRef = useRef<number | null>(null);
-  const silenceStartedAtRef = useRef<number | null>(null);
-  const speechStartedRef = useRef(false);
-  const isSendingAudioRef = useRef(false);
-  const shouldContinueVoiceRef = useRef(false);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const dataChannelRef = useRef<RTCDataChannel | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const audioUrlsRef = useRef<string[]>([]);
   const idCounterRef = useRef(0);
   const conversationIdRef = useRef("");
   const statusRef = useRef<AssistantStatus>("idle");
-  const voiceTranscriptRef = useRef("");
 
   const statusLabel = useMemo(() => {
     if (status === "listening") return "Escuchando";
@@ -93,40 +55,20 @@ export function AiAssistant() {
     statusRef.current = status;
   }, [status]);
 
-  const stopVoiceDetection = useCallback(() => {
-    if (silenceFrameRef.current) {
-      cancelAnimationFrame(silenceFrameRef.current);
-      silenceFrameRef.current = null;
-    }
-    if (transcriptSilenceTimeoutRef.current) {
-      window.clearTimeout(transcriptSilenceTimeoutRef.current);
-      transcriptSilenceTimeoutRef.current = null;
-    }
-    void audioContextRef.current?.close();
-    audioContextRef.current = null;
-    speechStartedRef.current = false;
-    silenceStartedAtRef.current = null;
-  }, []);
-
   const stopVoiceCapture = useCallback(() => {
-    stopVoiceDetection();
+    dataChannelRef.current?.close();
+    dataChannelRef.current = null;
 
-    recognitionRef.current?.stop();
-    recognitionRef.current = null;
-
-    const recorder = mediaRecorderRef.current;
-    if (recorder && recorder.state !== "inactive") {
-      recorder.stop();
-    }
-    mediaRecorderRef.current = null;
+    peerConnectionRef.current?.close();
+    peerConnectionRef.current = null;
 
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     mediaStreamRef.current = null;
-  }, [stopVoiceDetection]);
 
-  const cleanupAudioUrls = useCallback(() => {
-    audioUrlsRef.current.forEach((audioUrl) => URL.revokeObjectURL(audioUrl));
-    audioUrlsRef.current = [];
+    if (remoteAudioRef.current) {
+      remoteAudioRef.current.srcObject = null;
+      remoteAudioRef.current = null;
+    }
   }, []);
 
   function openAssistant() {
@@ -155,12 +97,10 @@ export function AiAssistant() {
     }
 
     ensureConversation("voice");
-    shouldContinueVoiceRef.current = true;
     void startVoiceCapture();
   }
 
   function muteVoiceMode() {
-    shouldContinueVoiceRef.current = false;
     stopVoiceCapture();
     setMode("text");
     setStatus("idle");
@@ -187,14 +127,13 @@ export function AiAssistant() {
     try {
       const response = await fetch("/api/assistant", {
         method: "POST",
-        headers: {
-          "content-type": "application/json"
-        },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({
           type: "text",
           message: content,
           conversationId: currentConversationId,
-          source: "student-assistant-widget"
+          source: "student-assistant-widget",
+          courseContext
         })
       });
 
@@ -215,203 +154,102 @@ export function AiAssistant() {
   async function startVoiceCapture() {
     if (!navigator.mediaDevices?.getUserMedia) {
       setStatus("error");
-      setError("Este navegador no permite grabar audio desde la pagina.");
+      setError("Este navegador no permite acceder al micrófono.");
       return;
     }
 
     try {
       stopVoiceCapture();
-      audioChunksRef.current = [];
-      voiceTranscriptRef.current = "";
+      setStatus("sending");
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const recorder = new MediaRecorder(stream);
-      mediaStreamRef.current = stream;
-      mediaRecorderRef.current = recorder;
+      // 1. Obtener token efímero del servidor (systemPrompt ya inyectado)
+      const sessionRes = await fetch("/api/assistant/session", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ courseContext })
+      });
 
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
+      if (!sessionRes.ok) {
+        let errMessage = "No se ha podido crear la sesión de voz.";
+        try {
+          const err = (await sessionRes.json()) as { error?: string };
+          if (err.error) errMessage = err.error;
+        } catch {
+          // respuesta vacía o no-JSON, usar mensaje por defecto
         }
+        throw new Error(errMessage);
+      }
+
+      const { client_secret } = (await sessionRes.json()) as { client_secret: string };
+
+      // 2. Configurar peer connection
+      const pc = new RTCPeerConnection();
+      peerConnectionRef.current = pc;
+
+      // Audio remoto: respuesta de OpenAI
+      const audioEl = new Audio();
+      audioEl.autoplay = true;
+      remoteAudioRef.current = audioEl;
+      pc.ontrack = (e) => {
+        audioEl.srcObject = e.streams[0];
       };
 
-      recorder.start(250);
-      startSpeechRecognition();
-      startSilenceDetection(stream);
+      // Audio local: micrófono del alumno
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+
+      // Data channel para eventos de transcripción
+      const dc = pc.createDataChannel("oai-events");
+      dataChannelRef.current = dc;
+      dc.onmessage = (e) => handleRealtimeEvent(JSON.parse(e.data as string) as RealtimeEvent);
+
+      // 3. SDP handshake con OpenAI Realtime
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      const sdpRes = await fetch("https://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${client_secret}`,
+          "Content-Type": "application/sdp"
+        },
+        body: offer.sdp
+      });
+
+      if (!sdpRes.ok) {
+        throw new Error(`Error conectando con OpenAI Realtime: ${sdpRes.status}`);
+      }
+
+      await pc.setRemoteDescription({ type: "answer", sdp: await sdpRes.text() });
+
       setStatus("listening");
       setError(null);
-    } catch {
+    } catch (err) {
       setStatus("error");
-      setError("No se ha podido acceder al microfono.");
+      setError(err instanceof Error ? err.message : "No se ha podido iniciar la sesión de voz.");
+      stopVoiceCapture();
     }
   }
 
-  async function sendCurrentAudio() {
-    const recorder = mediaRecorderRef.current;
-
-    if (
-      !recorder ||
-      isSendingAudioRef.current ||
-      statusRef.current === "sending" ||
-      statusRef.current === "replying"
-    ) {
-      return;
+  function handleRealtimeEvent(event: RealtimeEvent) {
+    if (event.type === "conversation.item.input_audio_transcription.completed") {
+      const transcript = (event.transcript as string | undefined) ?? "";
+      if (transcript.trim()) appendMessage("student", transcript.trim());
     }
-
-    isSendingAudioRef.current = true;
-    setStatus("sending");
-    setError(null);
-
-    const audioBlob = await stopRecorderAndBuildBlob();
-    const transcript = voiceTranscriptRef.current.trim();
-
-    if (audioBlob.size === 0 && !transcript) {
+    if (event.type === "response.audio_transcript.done") {
+      const transcript = (event.transcript as string | undefined) ?? "";
+      if (transcript.trim()) appendMessage("assistant", transcript.trim());
+      setStatus("listening");
+    }
+    if (event.type === "response.audio.started") {
+      setStatus("replying");
+    }
+    if (event.type === "error") {
+      const errEvent = event.error as { message?: string } | undefined;
       setStatus("error");
-      setError("No se ha detectado audio para enviar.");
-      isSendingAudioRef.current = false;
-      if (shouldContinueVoiceRef.current) void startVoiceCapture();
-      return;
+      setError(errEvent?.message ?? "Error en la sesión de voz.");
     }
-
-    appendMessage("student", transcript || "Audio enviado");
-
-    const formData = new FormData();
-    formData.append("type", "audio");
-    formData.append("conversationId", ensureConversation("voice"));
-    formData.append("source", "student-assistant-widget");
-    formData.append("transcript", transcript);
-    formData.append("audio", audioBlob, `assistant-audio-${nextId("audio")}.webm`);
-
-    try {
-      const response = await fetch("/api/assistant", {
-        method: "POST",
-        body: formData
-      });
-
-      if (!response.ok) {
-        const errorData = await readAssistantError(response);
-        throw new Error(errorData);
-      }
-
-      if (isAudioResponse(response)) {
-        setStatus("replying");
-        const assistantText = readAssistantTextHeader(response);
-        const audioBlob = await response.blob();
-        const audioType = response.headers.get("content-type") ?? audioBlob.type;
-        const audioUrl = URL.createObjectURL(audioBlob);
-        audioUrlsRef.current.push(audioUrl);
-        appendMessage("assistant", assistantText || "Respuesta de audio recibida.", audioUrl);
-
-        try {
-        await playAssistantAudioUrl(audioUrl, audioType, audioBlob.size);
-      } catch (playError) {
-        setError(playError instanceof Error ? playError.message : "Usa el reproductor para escuchar el audio.");
-      }
-
-        voiceTranscriptRef.current = "";
-        setStatus("idle");
-        isSendingAudioRef.current = false;
-
-        if (shouldContinueVoiceRef.current) {
-          void startVoiceCapture();
-        }
-
-        return;
-      }
-
-      const data = (await response.json()) as { reply?: string; error?: string };
-      appendMessage("assistant", data.reply ?? "El asistente no ha devuelto contenido.");
-      voiceTranscriptRef.current = "";
-      setStatus("idle");
-      isSendingAudioRef.current = false;
-
-      if (shouldContinueVoiceRef.current) {
-        void startVoiceCapture();
-      }
-    } catch (requestError) {
-      setStatus("error");
-      setError(requestError instanceof Error ? requestError.message : "Error enviando el audio.");
-      isSendingAudioRef.current = false;
-      if (shouldContinueVoiceRef.current) void startVoiceCapture();
-    }
-  }
-
-  function isAudioResponse(response: Response) {
-    const responseType = response.headers.get("content-type") ?? "";
-
-    return responseType.startsWith("audio/") || responseType.includes("application/octet-stream");
-  }
-
-  function readAssistantTextHeader(response: Response) {
-    const base64Value = response.headers.get("x-assistant-text-base64");
-
-    if (base64Value) {
-      try {
-        return decodeBase64Utf8(base64Value);
-      } catch {
-        return "";
-      }
-    }
-
-    const value = response.headers.get("x-assistant-text");
-
-    if (!value) return "";
-
-    try {
-      return decodeURIComponent(value);
-    } catch {
-      return value;
-    }
-  }
-
-  function decodeBase64Utf8(value: string) {
-    const binary = window.atob(value);
-    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-
-    return new TextDecoder().decode(bytes);
-  }
-
-  async function readAssistantError(response: Response) {
-    const responseType = response.headers.get("content-type") ?? "";
-
-    if (responseType.includes("application/json")) {
-      const data = (await response.json()) as { error?: string; details?: unknown };
-      const details =
-        typeof data.details === "string"
-          ? data.details
-          : data.details
-            ? JSON.stringify(data.details)
-            : "";
-
-      return [data.error, details].filter(Boolean).join(" ");
-    }
-
-    return response.text();
-  }
-
-  function playAssistantAudioUrl(audioUrl: string, contentType: string, byteSize: number) {
-    return new Promise<void>((resolve, reject) => {
-      const audio = new Audio(audioUrl);
-
-      audio.onended = () => {
-        resolve();
-      };
-      audio.onerror = () => {
-        openAudioFallback(audioUrl);
-        reject(new Error(`No se ha podido reproducir automaticamente el audio (${contentType}, ${byteSize} bytes). Usa el reproductor.`));
-      };
-
-      void audio.play().catch((playError: unknown) => {
-        openAudioFallback(audioUrl);
-        const detail = playError instanceof Error ? playError.message : "Error desconocido";
-        reject(new Error(`No se ha podido reproducir el audio (${contentType}, ${byteSize} bytes): ${detail}. Usa el reproductor.`));
-      });
-    });
-  }
-
-  function openAudioFallback(audioUrl: string) {
-    window.open(audioUrl, "_blank", "noopener,noreferrer");
-    window.setTimeout(() => URL.revokeObjectURL(audioUrl), 30_000);
   }
 
   function appendMessage(role: ChatMessage["role"], content: string, audioUrl?: string) {
@@ -440,124 +278,11 @@ export function AiAssistant() {
     return `${prefix}-${idCounterRef.current}`;
   }
 
-  function startSpeechRecognition() {
-    const Recognition = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-    if (!Recognition) return;
-
-    const recognition = new Recognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "es-ES";
-    recognition.onresult = (event) => {
-      let transcript = "";
-      for (let index = 0; index < event.results.length; index += 1) {
-        transcript += event.results[index][0].transcript;
-      }
-      const nextTranscript = transcript.trim();
-      voiceTranscriptRef.current = nextTranscript;
-
-      if (nextTranscript) {
-        speechStartedRef.current = true;
-        scheduleTranscriptAutoSend();
-      }
-    };
-    recognition.onerror = () => {
-      recognitionRef.current = null;
-    };
-    recognitionRef.current = recognition;
-    recognition.start();
-  }
-
-  function startSilenceDetection(stream: MediaStream) {
-    const AudioContextConstructor = window.AudioContext ?? window.webkitAudioContext;
-
-    if (!AudioContextConstructor) return;
-
-    const audioContext = new AudioContextConstructor();
-    const analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaStreamSource(stream);
-
-    analyser.fftSize = 1024;
-    const data = new Uint8Array(analyser.fftSize);
-    source.connect(analyser);
-    audioContextRef.current = audioContext;
-    void audioContext.resume();
-    speechStartedRef.current = false;
-    silenceStartedAtRef.current = null;
-
-    const detectSilence = () => {
-      analyser.getByteTimeDomainData(data);
-
-      let sum = 0;
-      for (const value of data) {
-        const normalized = (value - 128) / 128;
-        sum += normalized * normalized;
-      }
-
-      const volume = Math.sqrt(sum / data.length);
-      const now = performance.now();
-
-      if (volume > SPEECH_VOLUME_THRESHOLD) {
-        speechStartedRef.current = true;
-        silenceStartedAtRef.current = null;
-      } else if (speechStartedRef.current) {
-        silenceStartedAtRef.current ??= now;
-
-        if (now - silenceStartedAtRef.current > AUTO_SEND_SILENCE_MS) {
-          void sendCurrentAudio();
-          return;
-        }
-      }
-
-      silenceFrameRef.current = requestAnimationFrame(detectSilence);
-    };
-
-    silenceFrameRef.current = requestAnimationFrame(detectSilence);
-  }
-
-  function scheduleTranscriptAutoSend() {
-    if (transcriptSilenceTimeoutRef.current) {
-      window.clearTimeout(transcriptSilenceTimeoutRef.current);
-    }
-
-    transcriptSilenceTimeoutRef.current = window.setTimeout(() => {
-      if (shouldContinueVoiceRef.current && !isSendingAudioRef.current) {
-        void sendCurrentAudio();
-      }
-    }, AUTO_SEND_SILENCE_MS);
-  }
-
-  function stopRecorderAndBuildBlob() {
-    return new Promise<Blob>((resolve) => {
-      const recorder = mediaRecorderRef.current;
-
-      stopVoiceDetection();
-      recognitionRef.current?.stop();
-      recognitionRef.current = null;
-
-      if (!recorder || recorder.state === "inactive") {
-        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-        mediaStreamRef.current = null;
-        resolve(new Blob(audioChunksRef.current, { type: "audio/webm" }));
-        return;
-      }
-
-      recorder.onstop = () => {
-        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-        mediaStreamRef.current = null;
-        mediaRecorderRef.current = null;
-        resolve(new Blob(audioChunksRef.current, { type: "audio/webm" }));
-      };
-      recorder.stop();
-    });
-  }
-
   useEffect(() => {
     return () => {
       stopVoiceCapture();
-      cleanupAudioUrls();
     };
-  }, [cleanupAudioUrls, stopVoiceCapture]);
+  }, [stopVoiceCapture]);
 
   const visibleMessages =
     messages.length > 0
@@ -617,7 +342,11 @@ export function AiAssistant() {
                   <Mic size={32} />
                 </button>
                 <div className="assistant-voice-status">
-                  {status === "sending" ? "Thinking" : status === "replying" ? "Speaking" : "Listening"}
+                  {status === "sending"
+                    ? "Connecting"
+                    : status === "replying"
+                      ? "Speaking"
+                      : "Listening"}
                 </div>
               </div>
             </div>

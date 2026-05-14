@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { AssistantContextSetter } from "@/components/assistant-context-setter";
+import type { AssistantCourseContext } from "@/lib/assistant/system-prompt";
 
 type Stage = "video" | "exercises" | "summary" | "test";
 
@@ -33,6 +35,7 @@ type Lesson = {
     | {
         id: string;
         title: string;
+        description: string | null;
         sort_order: number;
         course_id: string;
         courses:
@@ -53,6 +56,7 @@ type Lesson = {
     | {
         id: string;
         title: string;
+        description: string | null;
         sort_order: number;
         course_id: string;
         courses:
@@ -71,6 +75,14 @@ type Lesson = {
           | null;
       }[]
     | null;
+};
+
+type UnitIndex = {
+  id: string;
+  title: string;
+  description: string | null;
+  sort_order: number;
+  lessons: Array<{ id: string; title: string; sort_order: number }>;
 };
 
 type Exercise = {
@@ -131,35 +143,47 @@ export default async function LessonPage({
     redirect("/dashboard?error=course-not-enrolled");
   }
 
-  const [{ data: lesson }, { data: exercisesData }, { data: progress }, { data: exerciseAttemptsData }] =
-    await Promise.all([
-      admin
-        .from("lessons")
-        .select(
-          "id, title, description, lesson_type, sort_order, video_url, pdf_url, content_json, requires_exam, minimum_score_to_pass, units(id, title, sort_order, course_id, courses(id, title, target_language, level))"
-        )
-        .eq("id", lessonId)
-        .single<Lesson>(),
-      admin
-        .from("exercises")
-        .select("id, title, exercise_type, sort_order, content_json")
-        .eq("lesson_id", lessonId)
-        .order("sort_order")
-        .returns<Exercise[]>(),
-      admin
-        .from("lesson_progress")
-        .select("video_completed, exercises_completed, exam_passed, is_completed, score")
-        .eq("employee_id", user.id)
-        .eq("lesson_id", lessonId)
-        .maybeSingle<LessonProgress>(),
-      admin
-        .from("exercise_attempts")
-        .select("exercise_id, answer_json, ai_analysis_json, score, passed, ai_feedback, created_at")
-        .eq("employee_id", user.id)
-        .eq("lesson_id", lessonId)
-        .order("created_at", { ascending: false })
-        .returns<ExerciseAttempt[]>()
-    ]);
+  const [
+    { data: lesson },
+    { data: exercisesData },
+    { data: progress },
+    { data: exerciseAttemptsData },
+    { data: allUnitsData }
+  ] = await Promise.all([
+    admin
+      .from("lessons")
+      .select(
+        "id, title, description, lesson_type, sort_order, video_url, pdf_url, content_json, requires_exam, minimum_score_to_pass, units(id, title, description, sort_order, course_id, courses(id, title, target_language, level))"
+      )
+      .eq("id", lessonId)
+      .single<Lesson>(),
+    admin
+      .from("exercises")
+      .select("id, title, exercise_type, sort_order, content_json")
+      .eq("lesson_id", lessonId)
+      .order("sort_order")
+      .returns<Exercise[]>(),
+    admin
+      .from("lesson_progress")
+      .select("video_completed, exercises_completed, exam_passed, is_completed, score")
+      .eq("employee_id", user.id)
+      .eq("lesson_id", lessonId)
+      .maybeSingle<LessonProgress>(),
+    admin
+      .from("exercise_attempts")
+      .select("exercise_id, answer_json, ai_analysis_json, score, passed, ai_feedback, created_at")
+      .eq("employee_id", user.id)
+      .eq("lesson_id", lessonId)
+      .order("created_at", { ascending: false })
+      .returns<ExerciseAttempt[]>(),
+    admin
+      .from("units")
+      .select("id, title, description, sort_order, lessons(id, title, sort_order)")
+      .eq("course_id", courseId)
+      .order("sort_order")
+      .order("sort_order", { foreignTable: "lessons" })
+      .returns<UnitIndex[]>()
+  ]);
 
   if (!lesson) {
     redirect(`/dashboard/courses/${courseId}?error=lesson-not-found`);
@@ -186,8 +210,38 @@ export default async function LessonPage({
   const exerciseAttempts = exerciseAttemptsData ?? [];
   const minimumScore = Number(lesson.minimum_score_to_pass ?? 80);
 
+  const allUnits = allUnitsData ?? [];
+  const previousUnit = allUnits.find((u) => u.sort_order === unit.sort_order - 1) ?? null;
+
+  const assistantContext: AssistantCourseContext = {
+    course: { title: course.title, target_language: course.target_language, level: course.level },
+    units: allUnits.map((u) => ({
+      id: u.id,
+      title: u.title,
+      sort_order: u.sort_order,
+      description: u.description,
+      lessons: (u.lessons ?? []).map((l) => ({ id: l.id, title: l.title, sort_order: l.sort_order }))
+    })),
+    currentUnit: {
+      id: unit.id,
+      sort_order: unit.sort_order,
+      description: unit.description ?? null,
+      title: unit.title
+    },
+    previousUnit: previousUnit
+      ? {
+          id: previousUnit.id,
+          sort_order: previousUnit.sort_order,
+          description: previousUnit.description,
+          title: previousUnit.title
+        }
+      : null,
+    currentUnitProgress: 0
+  };
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8">
+      <AssistantContextSetter courseContext={assistantContext} />
       <div className="mb-5">
         <Link
           className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950"
