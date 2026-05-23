@@ -86,7 +86,7 @@ export function FillInBlanksExercise({
         <input key={blank.id} name={`answer_${exerciseId}_${blank.id}`} type="hidden" value={selected[blank.id] ?? ""} />
       ))}
 
-      <p className="text-base leading-10 text-slate-800">
+      <p className="text-base leading-10 text-[var(--on-surface)]">
         {parts.map((part, i) => {
           if (part.type === "text") {
             return <span key={i}>{part.content}</span>;
@@ -104,8 +104,8 @@ export function FillInBlanksExercise({
               <button
                 className={`inline-flex items-center gap-1 rounded border px-2 py-0.5 text-sm font-medium transition-colors ${
                   selectedValue
-                    ? "border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-100"
-                    : "border-dashed border-slate-400 bg-slate-50 text-slate-400 hover:border-slate-500 hover:text-slate-600"
+                    ? "border-[var(--primary-container)] bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)] hover:bg-[var(--secondary-fixed)]"
+                    : "border-dashed border-[var(--outline)] bg-[var(--surface-container-low)] text-[var(--outline)] hover:border-[var(--on-surface-variant)] hover:text-[var(--on-surface-variant)]"
                 }`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -114,15 +114,15 @@ export function FillInBlanksExercise({
                 type="button"
               >
                 {selectedLabel ?? "___"}
-                <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                <ChevronDown className={`h-3 w-3 transition-transform ${isOpen ? "rotate-180" : ""}`} strokeWidth={1.5} />
               </button>
 
               {isOpen && (
-                <div className="absolute left-0 top-full z-20 mt-1 min-w-[9rem] overflow-hidden rounded-md border border-slate-200 bg-white shadow-md">
+                <div className="absolute left-0 top-full z-20 mt-1 min-w-[9rem] overflow-hidden rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
                   {blank.options.map((option) => (
                     <button
-                      className={`block w-full px-3 py-2 text-left text-sm transition-colors hover:bg-slate-50 ${
-                        selected[blank.id] === option.value ? "bg-orange-50 font-medium text-orange-700" : "text-slate-700"
+                      className={`block w-full px-3 py-2 text-left text-sm transition-colors hover:bg-[var(--surface-container-low)] ${
+                        selected[blank.id] === option.value ? "bg-[var(--primary-fixed)] font-medium text-[var(--on-primary-fixed-variant)]" : "text-[var(--on-surface-variant)]"
                       }`}
                       key={option.value}
                       onClick={(e) => {

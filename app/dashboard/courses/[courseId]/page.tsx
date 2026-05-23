@@ -140,29 +140,29 @@ export default async function CoursePage({
   };
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-7xl px-5 py-6 sm:px-8">
+    <main className="app-container min-h-screen py-8">
       <AssistantContextSetter courseContext={assistantContext} />
       <div className="mb-5">
-        <Link className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950" href="/dashboard">
+        <Link className="inline-flex items-center gap-2 text-sm font-medium text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]" href="/dashboard">
           <ArrowLeft size={16} />
           Dashboard
         </Link>
       </div>
 
-      <header className="border-b border-slate-200 pb-6">
-        <p className="text-sm font-medium text-slate-500">
+      <header className="border-b border-[var(--outline-variant)] pb-8">
+        <p className="text-sm font-medium text-[var(--outline)]">
           {course.target_language} · {course.level ?? "Level not set"}
         </p>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <h1 className="text-3xl font-semibold text-slate-950">{course.title}</h1>
-            <p className="mt-3 text-base leading-7 text-slate-600">
+            <h1 className="font-display text-3xl font-bold text-[var(--on-surface)]">{course.title}</h1>
+            <p className="mt-3 text-base leading-7 text-[var(--on-surface-variant)]">
               {course.description ?? "Course content is pending."}
             </p>
           </div>
-          <div className="rounded-md border border-slate-200 bg-white px-4 py-3">
-            <p className="text-sm text-slate-500">Course progress</p>
-            <p className="mt-1 text-2xl font-semibold text-slate-950">
+          <div className="rounded-[var(--r-md)] border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+            <p className="text-sm text-[var(--outline)]">Course progress</p>
+            <p className="font-display mt-1 text-2xl font-bold text-[var(--on-surface)]">
               {Number(enrollment.progress_percentage).toFixed(0)}%
             </p>
           </div>
@@ -170,12 +170,12 @@ export default async function CoursePage({
       </header>
 
       {query.success ? (
-        <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Progress saved successfully.
         </div>
       ) : null}
       {query.error ? (
-        <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mt-5 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
           {decodeURIComponent(query.error)}
         </div>
       ) : null}
@@ -195,9 +195,9 @@ export default async function CoursePage({
               <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Unit {unit.sort_order}</p>
-                    <h2 className="text-xl font-semibold text-slate-950">{unit.title}</h2>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                    <p className="text-sm font-medium text-[var(--outline)]">Unit {unit.sort_order}</p>
+                    <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">{unit.title}</h2>
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--on-surface-variant)]">
                       {unit.description ?? "Unit overview is pending."}
                     </p>
                   </div>
@@ -225,33 +225,33 @@ export default async function CoursePage({
                   })}
                 </div>
 
-                <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4">
+                <div className="mt-4 rounded-[var(--r-md)] border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-start gap-3">
-                      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-white text-slate-700">
-                        <Trophy size={18} />
+                      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)]">
+                        <Trophy strokeWidth={1.5} size={18} />
                       </div>
                       <div>
-                        <h3 className="font-semibold text-slate-950">End-of-unit test</h3>
-                        <p className="mt-1 text-sm leading-6 text-slate-600">
+                        <h3 className="font-semibold text-[var(--on-surface)]">End-of-unit test</h3>
+                        <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
                           Complete all lessons and the summary before taking this test. A score of 80% is required to unlock the next unit.
                         </p>
                       </div>
                     </div>
                     {examLesson && (testUnlocked || unitCompleted) ? (
                       <Link
-                        className={`inline-flex h-11 items-center justify-center gap-2 rounded-md px-4 text-sm font-medium ${
+                        className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold ${
                           unitCompleted
-                            ? "border border-slate-200 bg-white text-slate-950 hover:bg-slate-50"
-                            : "brand-accent-bg text-white"
+                            ? "border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
+                            : "brand-accent-bg text-[var(--on-primary)]"
                         }`}
                         href={`/dashboard/courses/${course.id}/lessons/${examLesson.id}?stage=test`}
                       >
                         {unitCompleted ? "Review test" : "Start test"}
                       </Link>
                     ) : (
-                      <span className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-4 text-sm font-medium text-slate-500">
-                        <Lock size={16} />
+                      <span className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 text-sm font-semibold text-[var(--outline)]">
+                        <Lock strokeWidth={1.5} size={16} />
                         {examLesson ? "Locked" : "Content pending"}
                       </span>
                     )}
@@ -265,8 +265,8 @@ export default async function CoursePage({
         {units.length === 0 ? (
           <Card>
             <CardHeader>
-              <h2 className="text-lg font-semibold text-slate-950">Content pending</h2>
-              <p className="text-sm leading-6 text-slate-600">
+              <h2 className="text-lg font-semibold text-[var(--on-surface)]">Content pending</h2>
+              <p className="text-sm leading-6 text-[var(--on-surface-variant)]">
                 This course does not have units or lessons loaded in Supabase yet. Once the content is ready, it can
                 follow this flow: video, exercises, PDF summary and graded test.
               </p>
@@ -281,8 +281,8 @@ export default async function CoursePage({
 function StatusBadge({ locked, completed }: { locked: boolean; completed: boolean }) {
   if (completed) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
-        <CheckCircle2 size={16} />
+      <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
+        <CheckCircle2 strokeWidth={1.5} size={16} />
         Completed
       </span>
     );
@@ -290,14 +290,18 @@ function StatusBadge({ locked, completed }: { locked: boolean; completed: boolea
 
   if (locked) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-md bg-slate-100 px-3 py-2 text-sm font-medium text-slate-500">
-        <Lock size={16} />
+      <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-container)] px-3 py-1.5 text-sm font-medium text-[var(--outline)]">
+        <Lock strokeWidth={1.5} size={16} />
         Locked
       </span>
     );
   }
 
-  return <span className="rounded-md bg-white px-3 py-2 text-sm font-medium text-slate-600">Available</span>;
+  return (
+    <span className="rounded-full bg-[var(--primary-fixed)] px-3 py-1.5 text-sm font-medium text-[var(--on-primary-fixed-variant)]">
+      Available
+    </span>
+  );
 }
 
 function LessonCard({
@@ -314,34 +318,34 @@ function LessonCard({
   const completed = Boolean(progress?.is_completed);
 
   return (
-    <div className="flex flex-col justify-between gap-4 rounded-md border border-slate-200 bg-white p-4">
+    <div className="flex flex-col justify-between gap-4 rounded-[var(--r-md)] border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-4">
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-100 text-slate-700">
+        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-container)] text-[var(--on-surface-variant)]">
           {completed ? (
-            <CheckCircle2 size={18} />
+            <CheckCircle2 strokeWidth={1.5} size={18} />
           ) : locked ? (
-            <Lock size={18} />
+            <Lock strokeWidth={1.5} size={18} />
           ) : lesson.lesson_type === "text" && lesson.pdf_url ? (
-            <FileText size={18} />
+            <FileText strokeWidth={1.5} size={18} />
           ) : (
-            <PlayCircle size={18} />
+            <PlayCircle strokeWidth={1.5} size={18} />
           )}
         </div>
         <div>
-          <p className="text-sm font-medium text-slate-500">Lesson {lesson.sort_order}</p>
-          <h3 className="font-semibold text-slate-950">{lesson.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
+          <p className="text-sm font-medium text-[var(--outline)]">Lesson {lesson.sort_order}</p>
+          <h3 className="font-semibold text-[var(--on-surface)]">{lesson.title}</h3>
+          <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
             {lesson.description ?? "Lesson content is pending."}
           </p>
         </div>
       </div>
       {locked ? (
-        <span className="inline-flex h-10 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-500">
+        <span className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--outline)]">
           Complete the previous lesson
         </span>
       ) : (
         <Link
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-950 hover:bg-slate-50"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
           href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=${
             lesson.lesson_type === "text" && lesson.pdf_url ? "summary" : progress?.video_completed ? "exercises" : "video"
           }`}

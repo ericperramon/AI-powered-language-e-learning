@@ -1,5 +1,11 @@
 import * as React from "react";
+import { cn } from "@/lib/utils";
 
-export function Label(props: React.LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className="text-sm font-medium text-slate-800" {...props} />;
+export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
+  return (
+    <label
+      className={cn("text-sm font-semibold tracking-[0.01em] text-[var(--on-surface)]", className)}
+      {...props}
+    />
+  );
 }

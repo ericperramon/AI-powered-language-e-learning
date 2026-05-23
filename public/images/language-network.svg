@@ -1,0 +1,92 @@
+<svg width="920" height="600" viewBox="0 0 920 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="920" height="600" rx="28" fill="#060913"/>
+  <rect width="920" height="600" rx="28" fill="url(#floor)"/>
+  <g opacity=".86">
+    <path d="M62 255L210 152L385 260L610 146L801 236" stroke="url(#warmLine)" stroke-width="2"/>
+    <path d="M90 456L280 426L456 472L640 408L842 470" stroke="url(#coolLine)" stroke-width="2"/>
+    <path d="M230 343L401 170L580 339L790 328" stroke="url(#warmLine)" stroke-width="2"/>
+    <path d="M200 166L235 340L275 430" stroke="#F4A36B" stroke-width="2" opacity=".75"/>
+    <path d="M610 148L628 342L641 408" stroke="#9487FF" stroke-width="2" opacity=".8"/>
+    <path d="M73 253L90 456" stroke="#F4A36B" stroke-width="2" opacity=".65"/>
+    <path d="M804 236L842 470" stroke="#9487FF" stroke-width="2" opacity=".65"/>
+  </g>
+  <g filter="url(#glowWarm)">
+    <rect x="97" y="359" width="60" height="70" rx="7" fill="#352018" stroke="#D58B64"/>
+    <text x="127" y="403" text-anchor="middle" font-size="26" fill="#F1B586" font-family="Arial, Helvetica, sans-serif">A↔</text>
+  </g>
+  <g filter="url(#glowWarm)">
+    <rect x="174" y="112" width="126" height="132" rx="8" fill="#4A2A20" stroke="#D88D66"/>
+    <text x="237" y="194" text-anchor="middle" font-size="72" fill="#F2B88D" font-family="Arial, Helvetica, sans-serif">AI</text>
+  </g>
+  <g filter="url(#glowWarm)">
+    <rect x="188" y="317" width="184" height="112" rx="8" fill="#5B3027" stroke="#DB926C"/>
+    <text x="280" y="385" text-anchor="middle" font-size="50" fill="#F2B88D" font-family="Arial, Helvetica, sans-serif">中文</text>
+  </g>
+  <g filter="url(#glowWarm)">
+    <rect x="365" y="145" width="118" height="66" rx="7" fill="#4A2B25" stroke="#C78466"/>
+    <text x="424" y="186" text-anchor="middle" font-size="30" fill="#E9B199" font-family="Arial, Helvetica, sans-serif">日本語</text>
+  </g>
+  <g filter="url(#glowCool)">
+    <rect x="454" y="272" width="128" height="58" rx="7" fill="#45334F" stroke="#A792D9"/>
+    <text x="518" y="309" text-anchor="middle" font-size="29" fill="#E4C0D0" font-family="Arial, Helvetica, sans-serif">Español</text>
+  </g>
+  <g filter="url(#glowCool)">
+    <rect x="546" y="372" width="128" height="58" rx="7" fill="#33284E" stroke="#9082E1"/>
+    <text x="610" y="409" text-anchor="middle" font-size="29" fill="#D5BEF5" font-family="Arial, Helvetica, sans-serif">English</text>
+  </g>
+  <g filter="url(#glowCool)">
+    <rect x="678" y="316" width="153" height="141" rx="8" fill="#362D55" stroke="#8E83E6"/>
+    <text x="755" y="391" text-anchor="middle" font-size="32" fill="#C9B9FA" font-family="Arial, Helvetica, sans-serif">Deutsch</text>
+  </g>
+  <g filter="url(#glowCool)">
+    <rect x="609" y="119" width="193" height="112" rx="8" fill="#302C49" stroke="#8D83D6"/>
+    <path d="M681 159h29c15 0 27 11 27 25s-12 25-27 25h-11l-18 17v-17c-15 0-27-11-27-25s12-25 27-25Z" stroke="#D5CCFF" stroke-width="4"/>
+    <circle cx="686" cy="184" r="3" fill="#D5CCFF"/>
+    <circle cx="700" cy="184" r="3" fill="#D5CCFF"/>
+    <circle cx="714" cy="184" r="3" fill="#D5CCFF"/>
+  </g>
+  <g filter="url(#glowCool)">
+    <rect x="583" y="296" width="66" height="66" rx="7" fill="#332C54" stroke="#8578D6"/>
+    <text x="616" y="337" text-anchor="middle" font-size="30" fill="#D6CDF7" font-family="Arial, Helvetica, sans-serif">✺</text>
+  </g>
+  <g filter="url(#glowCool)">
+    <rect x="785" y="112" width="74" height="74" rx="7" fill="#342E54" stroke="#8D83D6"/>
+    <text x="822" y="158" text-anchor="middle" font-size="28" fill="#D6CDF7" font-family="Arial, Helvetica, sans-serif">A↔</text>
+  </g>
+  <g filter="url(#glowWarm)">
+    <rect x="405" y="425" width="66" height="66" rx="7" fill="#452A28" stroke="#C77A64"/>
+    <path d="M423 449h27c9 0 16 6 16 14s-7 14-16 14h-11l-12 11v-11h-4c-9 0-16-6-16-14s7-14 16-14Z" stroke="#F1B586" stroke-width="3"/>
+  </g>
+  <g filter="url(#glowWarm)">
+    <rect x="52" y="245" width="66" height="66" rx="7" fill="#40251D" stroke="#D58B64"/>
+    <path d="M70 269h25c9 0 16 6 16 14s-7 14-16 14h-10l-10 10v-10h-5c-9 0-16-6-16-14s7-14 16-14Z" stroke="#F1B586" stroke-width="3"/>
+  </g>
+  <g filter="url(#glowCool)">
+    <rect x="802" y="444" width="72" height="72" rx="7" fill="#302B51" stroke="#8479D6"/>
+    <path d="M820 469h29c9 0 16 6 16 14s-7 14-16 14h-11l-11 11v-11h-7c-9 0-16-6-16-14s7-14 16-14Z" stroke="#CFC7FF" stroke-width="3"/>
+  </g>
+  <g filter="url(#glowCool)">
+    <rect x="611" y="442" width="66" height="66" rx="7" fill="#332C54" stroke="#8578D6"/>
+    <text x="644" y="483" text-anchor="middle" font-size="30" fill="#D6CDF7" font-family="Arial, Helvetica, sans-serif">✺</text>
+  </g>
+  <defs>
+    <linearGradient id="floor" x1="460" y1="0" x2="460" y2="600" gradientUnits="userSpaceOnUse">
+      <stop offset=".58" stop-color="#060913" stop-opacity="0"/>
+      <stop offset="1" stop-color="#272229" stop-opacity=".92"/>
+    </linearGradient>
+    <linearGradient id="warmLine" x1="62" y1="300" x2="610" y2="300" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EB9A62"/>
+      <stop offset="1" stop-color="#B092FF"/>
+    </linearGradient>
+    <linearGradient id="coolLine" x1="90" y1="455" x2="842" y2="455" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E99566"/>
+      <stop offset="1" stop-color="#8C83FF"/>
+    </linearGradient>
+    <filter id="glowWarm" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#EF9C62" flood-opacity=".38"/>
+    </filter>
+    <filter id="glowCool" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#8E84FF" flood-opacity=".42"/>
+    </filter>
+  </defs>
+</svg>

@@ -240,26 +240,26 @@ export default async function LessonPage({
   };
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl px-5 py-6 sm:px-8">
+    <main className="app-container min-h-screen py-8">
       <AssistantContextSetter courseContext={assistantContext} />
       <div className="mb-5">
         <Link
-          className="inline-flex items-center gap-2 text-sm font-medium text-slate-600 hover:text-slate-950"
+          className="inline-flex items-center gap-2 text-sm font-medium text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
           href={`/dashboard/courses/${courseId}`}
         >
-          <ArrowLeft size={16} />
+          <ArrowLeft strokeWidth={1.5} size={16} />
           Back to course
         </Link>
       </div>
 
-      <header className="border-b border-slate-200 pb-6">
-        <p className="text-sm font-medium text-slate-500">
+      <header className="border-b border-[var(--outline-variant)] pb-8">
+        <p className="text-sm font-medium text-[var(--outline)]">
           {course.title} · Unit {unit.sort_order}: {unit.title}
         </p>
         <div className="mt-3">
           <div>
-            <h1 className="text-3xl font-semibold text-slate-950">{lesson.title}</h1>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">
+            <h1 className="font-display text-3xl font-bold text-[var(--on-surface)]">{lesson.title}</h1>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--on-surface-variant)]">
               {lesson.description ?? "Lesson content is pending."}
             </p>
           </div>
@@ -267,14 +267,14 @@ export default async function LessonPage({
       </header>
 
       {query.error ? (
-        <div className="mt-5 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mt-5 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
           {query.error === "exercise-failed"
             ? "The score is below the minimum required. Repeat the exercise to continue."
             : "The test score is below 80%. Review the summary and try again."}
         </div>
       ) : null}
       {query.success === "exercise-passed" ? (
-        <div className="mt-5 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Exercise passed. Review the result and corrections below, then continue from the course page.
         </div>
       ) : null}
@@ -322,12 +322,12 @@ function SummaryStep({ courseId, lesson, unitId }: { courseId: string; lesson: L
     <Card>
       <CardHeader>
         <div className="flex items-start gap-3">
-          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white">
-            <FileText size={18} />
+          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+            <FileText strokeWidth={1.5} size={18} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-950">Unit PDF summary</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
+            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Unit PDF summary</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
               Review this summary before taking the graded test.
             </p>
           </div>
@@ -336,15 +336,15 @@ function SummaryStep({ courseId, lesson, unitId }: { courseId: string; lesson: L
       <CardContent>
         {lesson.pdf_url ? (
           <Link
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-950 hover:bg-slate-50"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
             href={lesson.pdf_url}
             target="_blank"
           >
-            <FileText size={16} />
+            <FileText strokeWidth={1.5} size={16} />
             Open PDF
           </Link>
         ) : (
-          <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
+          <div className="rounded-lg border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm leading-6 text-[var(--outline)]">
             PDF pending. Upload the summary to Supabase Storage and save its public URL in this lesson.
           </div>
         )}
@@ -354,7 +354,7 @@ function SummaryStep({ courseId, lesson, unitId }: { courseId: string; lesson: L
           <input name="unitId" type="hidden" value={unitId} />
           <input name="lessonId" type="hidden" value={lesson.id} />
           <Button type="submit">
-            <CheckCircle2 size={16} />
+            <CheckCircle2 strokeWidth={1.5} size={16} />
             Mark summary as reviewed
           </Button>
         </form>
@@ -370,12 +370,12 @@ function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Les
     <Card>
       <CardHeader>
         <div className="flex items-start gap-3">
-          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white">
-            <PlayCircle size={18} />
+          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+            <PlayCircle strokeWidth={1.5} size={18} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-950">Lesson video</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
+            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Lesson video</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
               Complete this step before opening the exercises.
             </p>
           </div>
@@ -383,7 +383,7 @@ function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Les
       </CardHeader>
       <CardContent>
         {videoEmbedUrl ? (
-          <div className="overflow-hidden rounded-md border border-slate-200 bg-black">
+          <div className="overflow-hidden rounded-lg border border-[var(--outline-variant)] bg-black">
             <iframe
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -393,7 +393,7 @@ function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Les
             />
           </div>
         ) : (
-          <div className="flex aspect-video items-center justify-center rounded-md border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm leading-6 text-slate-500">
+          <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-6 text-center text-sm leading-6 text-[var(--outline)]">
             Video pending. Once the content is added, the lesson video will appear here.
           </div>
         )}
@@ -403,7 +403,7 @@ function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Les
           <input name="unitId" type="hidden" value={unitId} />
           <input name="lessonId" type="hidden" value={lesson.id} />
           <Button type="submit">
-            <CheckCircle2 size={16} />
+            <CheckCircle2 strokeWidth={1.5} size={16} />
             Mark video as watched and start exercises
           </Button>
         </form>
@@ -461,10 +461,10 @@ function ExercisesStep({
       <Card>
         <CardHeader>
           <div className="flex items-start gap-3">
-            <Lock className="mt-1 text-slate-500" size={20} />
+            <Lock className="mt-1 text-[var(--outline)]" strokeWidth={1.5} size={20} />
             <div>
-              <h2 className="text-xl font-semibold text-slate-950">Exercises locked</h2>
-              <p className="mt-1 text-sm text-slate-600">Complete the lesson video first.</p>
+              <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Exercises locked</h2>
+              <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Complete the lesson video first.</p>
             </div>
           </div>
         </CardHeader>
@@ -485,16 +485,16 @@ function ExercisesStep({
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-slate-950">Lesson exercises</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
+            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Lesson exercises</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
               Complete these exercises to unlock the next available lesson.
             </p>
           </div>
           <Link
-            className="inline-flex shrink-0 items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm font-semibold text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
             href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=video`}
           >
-            <PlayCircle size={15} />
+            <PlayCircle strokeWidth={1.5} size={15} />
             Video lesson
           </Link>
         </div>
@@ -514,13 +514,13 @@ function ExercisesStep({
               );
 
               return (
-                <div className="rounded-md border border-slate-200 p-4" key={exercise.id}>
-                  <p className="text-sm font-medium text-slate-500">
+                <div className="rounded-lg border border-[var(--outline-variant)] p-4" key={exercise.id}>
+                  <p className="text-sm font-medium text-[var(--outline)]">
                     Exercise {exercise.sort_order} · {exercise.exercise_type}
                   </p>
-                  <h3 className="mt-1 font-semibold text-slate-950">{exercise.title}</h3>
+                  <h3 className="mt-1 font-semibold text-[var(--on-surface)]">{exercise.title}</h3>
                   {!isFillInBlanks && (
-                    <p className="mt-2 text-sm leading-6 text-slate-600">
+                    <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">
                       {formatExerciseContent(exercise.content_json)}
                     </p>
                   )}
@@ -532,20 +532,20 @@ function ExercisesStep({
               );
             })}
             {exercises.length === 0 ? (
-              <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
+              <div className="rounded-lg border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm leading-6 text-[var(--outline)]">
                 Exercises pending. They will appear here once the prepared content is loaded.
               </div>
             ) : null}
           </div>
 
           <Button type="submit">
-            <CheckCircle2 size={16} />
+            <CheckCircle2 strokeWidth={1.5} size={16} />
             {exercises.length === 0 ? "Complete exercises and continue" : "Check answers and continue"}
           </Button>
         </form>
         {progress?.is_completed ? (
           <Link
-            className="mt-4 inline-flex h-11 items-center justify-center rounded-md border border-slate-200 px-4 text-sm font-medium text-slate-950 hover:bg-slate-50"
+            className="mt-4 inline-flex h-10 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
             href={`/dashboard/courses/${courseId}`}
           >
             Continue to next lesson
@@ -588,25 +588,27 @@ function ExerciseAnswerControl({
           sentence={textBlanksData.sentence}
         />
       ) : items.length > 0 && typeof exercise.content_json.question === "string" ? (
-        <p className="rounded-md bg-slate-50 p-3 text-sm leading-6 text-slate-700">{exercise.content_json.question}</p>
+        <p className="rounded-lg bg-[var(--surface-container-low)] p-3 text-sm leading-6 text-[var(--on-surface-variant)]">
+          {exercise.content_json.question}
+        </p>
       ) : null}
 
       {blanksData || textBlanksData ? null : items.length > 0 ? (
         <div className="space-y-4">
           {items.map((item) => (
-            <fieldset className="space-y-2 rounded-md bg-slate-50 p-3" key={item.id}>
-              <legend className="text-sm font-medium leading-6 text-slate-950">
+            <fieldset className="space-y-2 rounded-lg bg-[var(--surface-container-low)] p-3" key={item.id}>
+              <legend className="text-sm font-medium leading-6 text-[var(--on-surface)]">
                 {item.number ? `${item.number}. ` : ""}
                 {item.question}
               </legend>
               <div className="grid gap-2 sm:grid-cols-2">
                 {item.options.map((option) => (
                   <label
-                    className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50"
+                    className="flex min-h-11 items-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface-variant)] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-[var(--primary-fixed)]"
                     key={option.value}
                   >
                     <input
-                      className="h-4 w-4 accent-orange-600"
+                      className="h-4 w-4 accent-[var(--primary)]"
                       defaultChecked={previousAnswer[item.id] === option.value}
                       name={`answer_${exercise.id}_${item.id}`}
                       required
@@ -624,11 +626,11 @@ function ExerciseAnswerControl({
         <div className="grid gap-2 sm:grid-cols-2">
           {options.map((option) => (
             <label
-              className="flex min-h-11 items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm text-slate-700 has-[:checked]:border-orange-500 has-[:checked]:bg-orange-50"
+              className="flex min-h-11 items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm text-[var(--on-surface-variant)] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-[var(--primary-fixed)]"
               key={option.value}
             >
               <input
-                className="h-4 w-4 accent-orange-600"
+                className="h-4 w-4 accent-[var(--primary)]"
                 defaultChecked={previousAnswer.answer === option.value}
                 name={`answer_${exercise.id}`}
                 required
@@ -643,7 +645,7 @@ function ExerciseAnswerControl({
         <div className="space-y-2">
           <Label htmlFor={`answer_${exercise.id}`}>Your answer</Label>
           <textarea
-            className="brand-accent-focus min-h-24 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 outline-none transition-colors placeholder:text-slate-400"
+            className="brand-accent-focus min-h-24 w-full rounded-lg border-[1.5px] border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-3.5 py-2 text-base text-[var(--on-surface)] outline-none transition-colors placeholder:text-[var(--outline)]"
             defaultValue={previousAnswer.answer}
             id={`answer_${exercise.id}`}
             name={`answer_${exercise.id}`}
@@ -657,8 +659,8 @@ function ExerciseAnswerControl({
         <div
           className={
             previousAttempt.passed
-              ? "rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-              : "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+              ? "rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
+              : "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
           }
         >
           <p className="font-medium">
@@ -729,12 +731,12 @@ function TestStep({
     <Card>
       <CardHeader>
         <div className="flex items-start gap-3">
-          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-md text-white">
-            <Trophy size={18} />
+          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
+            <Trophy strokeWidth={1.5} size={18} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-slate-950">Graded test</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
+            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Graded test</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
               Passing score: {minimumScore.toFixed(0)}%. If the score is below that, the next unit remains locked.
             </p>
           </div>
@@ -746,8 +748,8 @@ function TestStep({
             <div
               className={
                 unitCompleted
-                  ? "rounded-md border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-800"
-                  : "rounded-md border border-amber-200 bg-amber-50 px-4 py-4 text-amber-800"
+                  ? "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-800"
+                  : "rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-amber-800"
               }
             >
               <p className="text-lg font-semibold">
@@ -777,7 +779,7 @@ function TestStep({
 
             {unitCompleted ? (
               <Link
-                className="brand-accent-bg inline-flex h-11 w-full items-center justify-center gap-2 rounded-md text-sm font-medium text-white"
+                className="brand-accent-bg inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold"
                 href={`/dashboard/courses/${courseId}`}
               >
                 Go to course
@@ -802,11 +804,11 @@ function TestStep({
                 );
 
                 return (
-                  <div className="rounded-md border border-slate-200 p-4" key={exercise.id}>
-                    <p className="text-sm font-medium text-slate-500">Question {exercise.sort_order}</p>
-                    <h3 className="mt-1 font-semibold text-slate-950">{exercise.title}</h3>
+                  <div className="rounded-lg border border-[var(--outline-variant)] p-4" key={exercise.id}>
+                    <p className="text-sm font-medium text-[var(--outline)]">Question {exercise.sort_order}</p>
+                    <h3 className="mt-1 font-semibold text-[var(--on-surface)]">{exercise.title}</h3>
                     {!isFillInBlanks && (
-                      <p className="mt-2 text-sm leading-6 text-slate-600">
+                      <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">
                         {formatExerciseContent(exercise.content_json)}
                       </p>
                     )}
@@ -817,7 +819,7 @@ function TestStep({
             </div>
 
             <Button className="w-full" type="submit">
-              <CheckCircle2 size={16} />
+              <CheckCircle2 strokeWidth={1.5} size={16} />
               {allAttempted ? "Retry test" : "Submit test"}
             </Button>
           </form>
@@ -999,14 +1001,14 @@ function TextBlanksExercise({
   }
 
   return (
-    <p className="mt-4 text-base leading-10 text-slate-800">
+    <p className="mt-4 text-base leading-10 text-[var(--on-surface)]">
       {parts.map((part, i) =>
         part.type === "text" ? (
           <span key={i}>{part.content}</span>
         ) : (
           <input
             key={i}
-            className="mx-1 inline-block w-28 border-b-2 border-slate-400 bg-transparent px-1 text-center text-sm text-slate-950 outline-none transition-colors focus:border-orange-500"
+            className="mx-1 inline-block w-28 border-b-2 border-[var(--outline)] bg-transparent px-1 text-center text-sm text-[var(--on-surface)] outline-none transition-colors focus:border-[var(--primary)]"
             defaultValue={previousAnswers[part.id] ?? ""}
             name={`answer_${exerciseId}_${part.id}`}
             placeholder="..."

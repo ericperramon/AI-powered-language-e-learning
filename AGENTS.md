@@ -13,7 +13,9 @@
 - `AGENTS.md`: reglas globales para agentes, stack objetivo, convenciones de trabajo y criterios operativos.
 - `CLAUDE.md`: debe limitarse a importar `@AGENTS.md` y ajustes minimos especificos de Claude si hicieran falta.
 - `README.md`: informacion publica o introductoria del proyecto.
+- `docs/design-system.md`: fuente de verdad de las directrices visuales, tokens de diseno, tipografia, color, radios, elevacion y componentes UI.
 - La raiz contiene scaffold Next.js con `package.json`, estructura `app/`, componentes base en `components/ui`, clientes Supabase en `lib/supabase` y SQL en `supabase/`.
+- Las imagenes y assets visuales publicos de la web se centralizan en `public/images/`.
 
 ## Reglas de trabajo
 - Leer `AGENTS.md` y `contexto_proyecto.md` al iniciar una nueva sesion sobre este repo.
@@ -23,6 +25,7 @@
 - Si cambia el esquema, los flujos funcionales o el setup, actualizar la documentacion raiz en el mismo trabajo.
 - Antes de modificar codigo, comprobar si existe implementacion real. Si solo hay documentacion, no asumir rutas, scripts, dependencias ni arquitectura.
 - Priorizar cambios pequenos, verificables y alineados con el estado pre-MVP.
+- Para UI, seguir `docs/design-system.md` y reutilizar los tokens definidos en `app/globals.css` y los componentes base en `components/ui` antes de introducir colores, radios, sombras o escalas nuevas.
 - Separar claramente:
   - Estado implementado.
   - Decisiones tomadas.
