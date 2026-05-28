@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, BookOpen, CheckCircle2, FileText, Lock, PlayCircle, Trophy } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpen,
+  CheckCircle2,
+  ChevronRight,
+  FileText,
+  Lock,
+  PlayCircle,
+  Trophy
+} from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -120,8 +129,9 @@ export default async function CoursePage({
   }
 
   const units = unitsData ?? [];
-  const lessonProgress = new Map((lessonProgressData ?? []).map((progress) => [progress.lesson_id, progress]));
-  const unitProgress = new Map((unitProgressData ?? []).map((progress) => [progress.unit_id, progress]));
+  const lessonProgress = new Map((lessonProgressData ?? []).map((p) => [p.lesson_id, p]));
+  const unitProgress = new Map((unitProgressData ?? []).map((p) => [p.unit_id, p]));
+  const progress = Math.min(Math.max(Number(enrollment.progress_percentage), 0), 100);
 
   const assistantContext: AssistantCourseContext = {
     course: { title: course.title, target_language: course.target_language, level: course.level },
@@ -140,149 +150,221 @@ export default async function CoursePage({
   };
 
   return (
-    <main className="app-container min-h-screen py-8">
+    <main className="min-h-screen w-full px-5 py-8 sm:px-8 lg:px-10">
       <AssistantContextSetter courseContext={assistantContext} />
-      <div className="mb-5">
-        <Link className="inline-flex items-center gap-2 text-sm font-medium text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]" href="/dashboard">
-          <ArrowLeft size={16} />
-          Dashboard
-        </Link>
-      </div>
 
-      <header className="border-b border-[var(--outline-variant)] pb-8">
-        <p className="text-sm font-medium text-[var(--outline)]">
-          {course.target_language} · {course.level ?? "Level not set"}
-        </p>
-        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <h1 className="font-display text-3xl font-bold text-[var(--on-surface)]">{course.title}</h1>
-            <p className="mt-3 text-base leading-7 text-[var(--on-surface-variant)]">
-              {course.description ?? "Course content is pending."}
-            </p>
+      <div className="mx-auto max-w-4xl">
+        {/* Breadcrumb */}
+        <nav className="mb-6 flex items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-1.5 font-medium transition-colors hover:text-[var(--on-surface)]"
+          >
+            <ArrowLeft size={15} strokeWidth={1.5} />
+            Dashboard
+          </Link>
+          <ChevronRight size={14} className="text-[var(--outline)]" />
+          <span className="truncate text-[var(--on-surface)]">{course.title}</span>
+        </nav>
+
+        {/* Course header */}
+        <div className="mb-8 overflow-hidden rounded-[var(--r-xl)] border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+          <div className="bg-[var(--primary)] px-6 py-8 sm:px-8">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-white/90">
+                {course.target_language}
+              </span>
+              {course.level && (
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
+                  {course.level}
+                </span>
+              )}
+              {course.estimated_duration_minutes && (
+                <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-white/80">
+                  ~{Math.round(course.estimated_duration_minutes / 60)}h
+                </span>
+              )}
+            </div>
+            <h1 className="font-display mt-4 text-3xl font-bold text-white sm:text-4xl">{course.title}</h1>
+            {course.description && (
+              <p className="mt-2 text-base leading-7 text-white/75">{course.description}</p>
+            )}
           </div>
-          <div className="rounded-[var(--r-md)] border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 py-3 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
-            <p className="text-sm text-[var(--outline)]">Course progress</p>
-            <p className="font-display mt-1 text-2xl font-bold text-[var(--on-surface)]">
-              {Number(enrollment.progress_percentage).toFixed(0)}%
-            </p>
+          <div className="px-6 py-5 sm:px-8">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-[var(--on-surface-variant)]">Overall progress</span>
+              <span className="font-bold text-[var(--on-surface)]">{progress.toFixed(0)}%</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--surface-container-high)]">
+              <div
+                className="h-full rounded-full bg-[var(--primary)] transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
           </div>
         </div>
-      </header>
 
-      {query.success ? (
-        <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Progress saved successfully.
-        </div>
-      ) : null}
-      {query.error ? (
-        <div className="mt-5 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
-          {decodeURIComponent(query.error)}
-        </div>
-      ) : null}
+        {query.success ? (
+          <div className="mb-6 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            Progress saved successfully.
+          </div>
+        ) : null}
+        {query.error ? (
+          <div className="mb-6 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
+            {decodeURIComponent(query.error)}
+          </div>
+        ) : null}
 
-      <section className="space-y-5 py-6">
-        {units.map((unit, unitIndex) => {
-          const previousUnit = units[unitIndex - 1];
-          const unitIsUnlocked = unitIndex === 0 || Boolean(previousUnit && unitProgress.get(previousUnit.id)?.is_completed);
-          const examLesson = unit.lessons.find((lesson) => lesson.lesson_type === "exam" || lesson.requires_exam);
-          const orderedLessons = unit.lessons.filter((lesson) => lesson.id !== examLesson?.id);
-          const lessonsCompleted = orderedLessons.every((lesson) => lessonProgress.get(lesson.id)?.is_completed);
-          const unitCompleted = Boolean(unitProgress.get(unit.id)?.is_completed);
-          const testUnlocked = unitIsUnlocked && orderedLessons.length > 0 && lessonsCompleted;
+        {/* Units */}
+        <div className="space-y-5">
+          {units.map((unit, unitIndex) => {
+            const previousUnit = units[unitIndex - 1];
+            const unitIsUnlocked =
+              unitIndex === 0 || Boolean(previousUnit && unitProgress.get(previousUnit.id)?.is_completed);
+            const examLesson = unit.lessons.find((l) => l.lesson_type === "exam" || l.requires_exam);
+            const orderedLessons = unit.lessons.filter((l) => l.id !== examLesson?.id);
+            const lessonsCompleted = orderedLessons.every((l) => lessonProgress.get(l.id)?.is_completed);
+            const unitCompleted = Boolean(unitProgress.get(unit.id)?.is_completed);
+            const testUnlocked = unitIsUnlocked && orderedLessons.length > 0 && lessonsCompleted;
+            const completedCount = orderedLessons.filter((l) => lessonProgress.get(l.id)?.is_completed).length;
 
-          return (
-            <Card key={unit.id}>
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-[var(--outline)]">Unit {unit.sort_order}</p>
-                    <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">{unit.title}</h2>
-                    <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--on-surface-variant)]">
-                      {unit.description ?? "Unit overview is pending."}
-                    </p>
-                  </div>
-                  <StatusBadge locked={!unitIsUnlocked} completed={unitCompleted} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3 lg:grid-cols-2">
-                  {orderedLessons.map((lesson, lessonIndex) => {
-                    const previousLesson = orderedLessons[lessonIndex - 1];
-                    const previousCompleted =
-                      lessonIndex === 0 || Boolean(previousLesson && lessonProgress.get(previousLesson.id)?.is_completed);
-                    const lessonUnlocked = unitIsUnlocked && previousCompleted;
-                    const progress = lessonProgress.get(lesson.id);
-
-                    return (
-                      <LessonCard
-                        courseId={course.id}
-                        key={lesson.id}
-                        lesson={lesson}
-                        locked={!lessonUnlocked}
-                        progress={progress}
-                      />
-                    );
-                  })}
-                </div>
-
-                <div className="mt-4 rounded-[var(--r-md)] border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            return (
+              <Card key={unit.id} className={!unitIsUnlocked ? "opacity-60" : ""}>
+                <CardHeader>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex items-start gap-3">
-                      <div className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)]">
-                        <Trophy strokeWidth={1.5} size={18} />
+                      <div
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+                          unitCompleted
+                            ? "bg-emerald-50 text-emerald-600"
+                            : unitIsUnlocked
+                              ? "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]"
+                              : "bg-[var(--surface-container)] text-[var(--outline)]"
+                        }`}
+                      >
+                        {unitCompleted ? (
+                          <CheckCircle2 size={16} strokeWidth={2} />
+                        ) : !unitIsUnlocked ? (
+                          <Lock size={15} strokeWidth={1.5} />
+                        ) : (
+                          unit.sort_order
+                        )}
                       </div>
                       <div>
-                        <h3 className="font-semibold text-[var(--on-surface)]">End-of-unit test</h3>
-                        <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
-                          Complete all lessons and the summary before taking this test. A score of 80% is required to unlock the next unit.
+                        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
+                          Unit {unit.sort_order}
                         </p>
+                        <h2 className="font-display text-xl font-semibold text-[var(--on-surface)]">{unit.title}</h2>
+                        {unit.description && (
+                          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--on-surface-variant)]">
+                            {unit.description}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    {examLesson && (testUnlocked || unitCompleted) ? (
-                      <Link
-                        className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold ${
-                          unitCompleted
-                            ? "border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
-                            : "brand-accent-bg text-[var(--on-primary)]"
-                        }`}
-                        href={`/dashboard/courses/${course.id}/lessons/${examLesson.id}?stage=test`}
-                      >
-                        {unitCompleted ? "Review test" : "Start test"}
-                      </Link>
-                    ) : (
-                      <span className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 text-sm font-semibold text-[var(--outline)]">
-                        <Lock strokeWidth={1.5} size={16} />
-                        {examLesson ? "Locked" : "Content pending"}
-                      </span>
-                    )}
+                    <StatusBadge locked={!unitIsUnlocked} completed={unitCompleted} total={orderedLessons.length} done={completedCount} />
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {orderedLessons.map((lesson, lessonIndex) => {
+                      const previousLesson = orderedLessons[lessonIndex - 1];
+                      const previousCompleted =
+                        lessonIndex === 0 ||
+                        Boolean(previousLesson && lessonProgress.get(previousLesson.id)?.is_completed);
+                      const lessonUnlocked = unitIsUnlocked && previousCompleted;
+                      const lProgress = lessonProgress.get(lesson.id);
 
-        {units.length === 0 ? (
-          <Card>
-            <CardHeader>
-              <h2 className="text-lg font-semibold text-[var(--on-surface)]">Content pending</h2>
-              <p className="text-sm leading-6 text-[var(--on-surface-variant)]">
-                This course does not have units or lessons loaded in Supabase yet. Once the content is ready, it can
-                follow this flow: video, exercises, PDF summary and graded test.
-              </p>
-            </CardHeader>
-          </Card>
-        ) : null}
-      </section>
+                      return (
+                        <LessonCard
+                          courseId={course.id}
+                          key={lesson.id}
+                          lesson={lesson}
+                          locked={!lessonUnlocked}
+                          progress={lProgress}
+                        />
+                      );
+                    })}
+                  </div>
+
+                  {/* Unit test */}
+                  <div className="mt-4 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                            unitCompleted
+                              ? "bg-emerald-50 text-emerald-600"
+                              : testUnlocked
+                                ? "bg-[var(--primary)] text-white"
+                                : "bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)]"
+                          }`}
+                        >
+                          <Trophy strokeWidth={1.5} size={17} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-[var(--on-surface)]">End-of-unit test</h3>
+                          <p className="mt-0.5 text-sm leading-6 text-[var(--on-surface-variant)]">
+                            Complete all lessons before taking this test. A score of 80% is required to unlock the next unit.
+                          </p>
+                        </div>
+                      </div>
+                      {examLesson && (testUnlocked || unitCompleted) ? (
+                        <Link
+                          className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
+                            unitCompleted
+                              ? "border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
+                              : "bg-[var(--primary)] text-[var(--on-primary)] hover:bg-[var(--primary-container)]"
+                          }`}
+                          href={`/dashboard/courses/${course.id}/lessons/${examLesson.id}?stage=test`}
+                        >
+                          {unitCompleted ? "Review test" : "Start test"}
+                        </Link>
+                      ) : (
+                        <span className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 text-sm font-semibold text-[var(--outline)]">
+                          <Lock strokeWidth={1.5} size={15} />
+                          {examLesson ? "Locked" : "Content pending"}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+
+          {units.length === 0 ? (
+            <Card>
+              <CardHeader>
+                <h2 className="text-lg font-semibold text-[var(--on-surface)]">Content pending</h2>
+                <p className="text-sm leading-6 text-[var(--on-surface-variant)]">
+                  This course does not have units or lessons loaded in Supabase yet. Once the content is ready, it can
+                  follow this flow: video, exercises, PDF summary and graded test.
+                </p>
+              </CardHeader>
+            </Card>
+          ) : null}
+        </div>
+      </div>
     </main>
   );
 }
 
-function StatusBadge({ locked, completed }: { locked: boolean; completed: boolean }) {
+function StatusBadge({
+  locked,
+  completed,
+  total,
+  done
+}: {
+  locked: boolean;
+  completed: boolean;
+  total: number;
+  done: number;
+}) {
   if (completed) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
-        <CheckCircle2 strokeWidth={1.5} size={16} />
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
+        <CheckCircle2 strokeWidth={1.5} size={15} />
         Completed
       </span>
     );
@@ -290,15 +372,23 @@ function StatusBadge({ locked, completed }: { locked: boolean; completed: boolea
 
   if (locked) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-container)] px-3 py-1.5 text-sm font-medium text-[var(--outline)]">
-        <Lock strokeWidth={1.5} size={16} />
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-3 py-1.5 text-sm font-medium text-[var(--outline)]">
+        <Lock strokeWidth={1.5} size={15} />
         Locked
       </span>
     );
   }
 
+  if (total > 0) {
+    return (
+      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--primary-fixed)] px-3 py-1.5 text-sm font-medium text-[var(--on-primary-fixed-variant)]">
+        {done}/{total} lessons
+      </span>
+    );
+  }
+
   return (
-    <span className="rounded-full bg-[var(--primary-fixed)] px-3 py-1.5 text-sm font-medium text-[var(--on-primary-fixed-variant)]">
+    <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--primary-fixed)] px-3 py-1.5 text-sm font-medium text-[var(--on-primary-fixed-variant)]">
       Available
     </span>
   );
@@ -316,42 +406,63 @@ function LessonCard({
   progress?: LessonProgress;
 }) {
   const completed = Boolean(progress?.is_completed);
+  const isSummary = lesson.lesson_type === "text" && lesson.pdf_url;
 
   return (
-    <div className="flex flex-col justify-between gap-4 rounded-[var(--r-md)] border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-4">
+    <div
+      className={`flex flex-col justify-between gap-4 rounded-xl border p-4 transition-colors ${
+        locked
+          ? "border-[var(--outline-variant)] bg-[var(--surface-container-low)] opacity-70"
+          : completed
+            ? "border-emerald-200 bg-emerald-50/40"
+            : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary-fixed-dim)]"
+      }`}
+    >
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--surface-container)] text-[var(--on-surface-variant)]">
+        <div
+          className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+            completed
+              ? "bg-emerald-100 text-emerald-600"
+              : locked
+                ? "bg-[var(--surface-container)] text-[var(--outline)]"
+                : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]"
+          }`}
+        >
           {completed ? (
-            <CheckCircle2 strokeWidth={1.5} size={18} />
+            <CheckCircle2 strokeWidth={1.5} size={16} />
           ) : locked ? (
-            <Lock strokeWidth={1.5} size={18} />
-          ) : lesson.lesson_type === "text" && lesson.pdf_url ? (
-            <FileText strokeWidth={1.5} size={18} />
+            <Lock strokeWidth={1.5} size={15} />
+          ) : isSummary ? (
+            <FileText strokeWidth={1.5} size={16} />
           ) : (
-            <PlayCircle strokeWidth={1.5} size={18} />
+            <PlayCircle strokeWidth={1.5} size={16} />
           )}
         </div>
         <div>
-          <p className="text-sm font-medium text-[var(--outline)]">Lesson {lesson.sort_order}</p>
+          <p className="text-xs font-medium text-[var(--outline)]">Lesson {lesson.sort_order}</p>
           <h3 className="font-semibold text-[var(--on-surface)]">{lesson.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
-            {lesson.description ?? "Lesson content is pending."}
-          </p>
+          {lesson.description && (
+            <p className="mt-0.5 text-sm leading-5 text-[var(--on-surface-variant)]">{lesson.description}</p>
+          )}
         </div>
       </div>
       {locked ? (
-        <span className="inline-flex h-10 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--outline)]">
+        <span className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-4 text-xs font-semibold text-[var(--outline)]">
           Complete the previous lesson
         </span>
       ) : (
         <Link
-          className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
+          className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors ${
+            completed
+              ? "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--primary-fixed)] hover:border-[var(--primary-fixed-dim)]"
+          }`}
           href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=${
-            lesson.lesson_type === "text" && lesson.pdf_url ? "summary" : progress?.video_completed ? "exercises" : "video"
+            isSummary ? "summary" : progress?.video_completed ? "exercises" : "video"
           }`}
         >
-          {lesson.lesson_type === "text" && lesson.pdf_url ? <FileText size={16} /> : <BookOpen size={16} />}
-          {completed ? "Review" : "Continue"}
+          {isSummary ? <FileText size={14} /> : <BookOpen size={14} />}
+          {completed ? "Review" : progress?.video_completed ? "Continue" : "Start"}
         </Link>
       )}
     </div>

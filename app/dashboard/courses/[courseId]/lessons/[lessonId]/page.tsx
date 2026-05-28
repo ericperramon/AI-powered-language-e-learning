@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, FileText, Lock, PlayCircle, Trophy } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, FileText, Lock, PlayCircle, Trophy } from "lucide-react";
 import {
   completeLessonVideo,
   completeSummaryLesson,
@@ -239,72 +239,127 @@ export default async function LessonPage({
     currentUnitProgress: 0
   };
 
+  const stageSteps =
+    lesson.lesson_type === "text" && Boolean(lesson.pdf_url)
+      ? null
+      : lesson.lesson_type === "exam"
+        ? null
+        : [
+            { key: "video", label: "Video", icon: PlayCircle },
+            { key: "exercises", label: "Exercises", icon: CheckCircle2 }
+          ];
+
   return (
-    <main className="app-container min-h-screen py-8">
+    <main className="min-h-screen w-full px-5 py-8 sm:px-8 lg:px-10">
       <AssistantContextSetter courseContext={assistantContext} />
-      <div className="mb-5">
-        <Link
-          className="inline-flex items-center gap-2 text-sm font-medium text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
-          href={`/dashboard/courses/${courseId}`}
-        >
-          <ArrowLeft strokeWidth={1.5} size={16} />
-          Back to course
-        </Link>
-      </div>
 
-      <header className="border-b border-[var(--outline-variant)] pb-8">
-        <p className="text-sm font-medium text-[var(--outline)]">
-          {course.title} · Unit {unit.sort_order}: {unit.title}
-        </p>
-        <div className="mt-3">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-[var(--on-surface)]">{lesson.title}</h1>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--on-surface-variant)]">
-              {lesson.description ?? "Lesson content is pending."}
-            </p>
+      <div className="mx-auto max-w-3xl">
+        {/* Breadcrumb */}
+        <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
+          <Link
+            href="/dashboard"
+            className="font-medium transition-colors hover:text-[var(--on-surface)]"
+          >
+            Dashboard
+          </Link>
+          <ChevronRight size={14} className="text-[var(--outline)]" />
+          <Link
+            href={`/dashboard/courses/${courseId}`}
+            className="flex items-center gap-1 font-medium transition-colors hover:text-[var(--on-surface)]"
+          >
+            <ArrowLeft size={14} strokeWidth={1.5} />
+            {course.title}
+          </Link>
+          <ChevronRight size={14} className="text-[var(--outline)]" />
+          <span className="text-[var(--on-surface)]">Unit {unit.sort_order}</span>
+        </nav>
+
+        {/* Lesson header */}
+        <div className="mb-6 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
+            {unit.title} · Lesson {lesson.sort_order}
+          </p>
+          <h1 className="font-display mt-1.5 text-2xl font-bold text-[var(--on-surface)] sm:text-3xl">
+            {lesson.title}
+          </h1>
+          {lesson.description && (
+            <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">{lesson.description}</p>
+          )}
+
+          {/* Stage indicator */}
+          {stageSteps && (
+            <div className="mt-4 flex items-center gap-2">
+              {stageSteps.map((step, i) => {
+                const isActive = stage === step.key;
+                const isDone =
+                  step.key === "video"
+                    ? Boolean(progress?.video_completed)
+                    : step.key === "exercises"
+                      ? Boolean(progress?.exercises_completed)
+                      : false;
+                return (
+                  <div key={step.key} className="flex items-center gap-2">
+                    {i > 0 && <div className="h-px w-8 bg-[var(--outline-variant)]" />}
+                    <Link
+                      href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=${step.key}`}
+                      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        isActive
+                          ? "bg-[var(--primary)] text-white"
+                          : isDone
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"
+                      }`}
+                    >
+                      <step.icon size={13} strokeWidth={1.5} />
+                      {step.label}
+                    </Link>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {query.error ? (
+          <div className="mb-5 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
+            {query.error === "exercise-failed"
+              ? "The score is below the minimum required. Repeat the exercise to continue."
+              : "The test score is below 80%. Review the summary and try again."}
           </div>
-        </div>
-      </header>
+        ) : null}
+        {query.success === "exercise-passed" ? (
+          <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            Exercise passed. Review the result and corrections below, then continue from the course page.
+          </div>
+        ) : null}
 
-      {query.error ? (
-        <div className="mt-5 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
-          {query.error === "exercise-failed"
-            ? "The score is below the minimum required. Repeat the exercise to continue."
-            : "The test score is below 80%. Review the summary and try again."}
+        <div>
+          {stage === "summary" ? (
+            <SummaryStep courseId={courseId} lesson={lesson} unitId={unit.id} />
+          ) : stage === "video" ? (
+            <VideoStep courseId={courseId} lesson={lesson} unitId={unit.id} />
+          ) : stage === "exercises" ? (
+            <ExercisesStep
+              attempts={exerciseAttempts}
+              courseId={courseId}
+              exercises={exercises}
+              lesson={lesson}
+              progress={progress}
+              unitId={unit.id}
+            />
+          ) : (
+            <TestStep
+              attempts={exerciseAttempts}
+              courseId={courseId}
+              exercises={exercises}
+              lesson={lesson}
+              minimumScore={minimumScore}
+              unitCompleted={Boolean(progress?.exam_passed)}
+              unitId={unit.id}
+            />
+          )}
         </div>
-      ) : null}
-      {query.success === "exercise-passed" ? (
-        <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Exercise passed. Review the result and corrections below, then continue from the course page.
-        </div>
-      ) : null}
-
-      <section className="py-6">
-        {stage === "summary" ? (
-          <SummaryStep courseId={courseId} lesson={lesson} unitId={unit.id} />
-        ) : stage === "video" ? (
-          <VideoStep courseId={courseId} lesson={lesson} unitId={unit.id} />
-        ) : stage === "exercises" ? (
-          <ExercisesStep
-            attempts={exerciseAttempts}
-            courseId={courseId}
-            exercises={exercises}
-            lesson={lesson}
-            progress={progress}
-            unitId={unit.id}
-          />
-        ) : (
-          <TestStep
-            attempts={exerciseAttempts}
-            courseId={courseId}
-            exercises={exercises}
-            lesson={lesson}
-            minimumScore={minimumScore}
-            unitCompleted={Boolean(progress?.exam_passed)}
-            unitId={unit.id}
-          />
-        )}
-      </section>
+      </div>
     </main>
   );
 }
