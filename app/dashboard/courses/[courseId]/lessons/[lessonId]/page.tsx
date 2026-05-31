@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronRight, FileText, Lock, PlayCircle, Trophy } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, FileText, Lock, PlayCircle, Trophy } from "lucide-react";
 import {
   completeLessonVideo,
   completeSummaryLesson,
   submitLessonExercises,
+  submitPracticeTask,
   submitUnitTest,
   submitUnitTestExercises
 } from "@/app/dashboard/courses/[courseId]/actions";
 import { FillInBlanksExercise } from "@/components/exercises/fill-in-blanks";
+import { PracticeTaskForm } from "@/components/exercises/practice-task-form";
+import { PracticeTaskStatus } from "@/components/courses/practice-task-status";
+import type { PracticeTaskSubmissionStatus } from "@/components/courses/practice-task-status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,13 +22,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AssistantContextSetter } from "@/components/assistant-context-setter";
 import type { AssistantCourseContext } from "@/lib/assistant/system-prompt";
 
-type Stage = "video" | "exercises" | "summary" | "test";
+type Stage = "video" | "exercises" | "summary" | "test" | "practice_task";
 
 type Lesson = {
   id: string;
   title: string;
   description: string | null;
-  lesson_type: "video" | "text" | "exercise" | "mixed" | "exam";
+  lesson_type: "video" | "text" | "exercise" | "mixed" | "exam" | "practice_task";
   sort_order: number;
   video_url: string | null;
   pdf_url: string | null;
@@ -111,6 +115,13 @@ type LessonProgress = {
   score: number | string | null;
 };
 
+type PracticeTaskSubmission = {
+  status: PracticeTaskSubmissionStatus;
+  reviewer_notes: string | null;
+  reviewed_at: string | null;
+  content_json: { response?: string };
+};
+
 export default async function LessonPage({
   params,
   searchParams
@@ -148,7 +159,8 @@ export default async function LessonPage({
     { data: exercisesData },
     { data: progress },
     { data: exerciseAttemptsData },
-    { data: allUnitsData }
+    { data: allUnitsData },
+    { data: practiceSubmission },
   ] = await Promise.all([
     admin
       .from("lessons")
@@ -182,7 +194,13 @@ export default async function LessonPage({
       .eq("course_id", courseId)
       .order("sort_order")
       .order("sort_order", { foreignTable: "lessons" })
-      .returns<UnitIndex[]>()
+      .returns<UnitIndex[]>(),
+    admin
+      .from("practice_task_submissions")
+      .select("status, reviewer_notes, reviewed_at, content_json")
+      .eq("employee_id", user.id)
+      .eq("lesson_id", lessonId)
+      .maybeSingle<PracticeTaskSubmission>(),
   ]);
 
   if (!lesson) {
@@ -201,9 +219,14 @@ export default async function LessonPage({
   }
 
   const isSummaryLesson = lesson.lesson_type === "text" && Boolean(lesson.pdf_url);
+  const isPracticeTaskLesson = lesson.lesson_type === "practice_task";
 
   if (isSummaryLesson && stage !== "summary") {
     redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=summary`);
+  }
+
+  if (isPracticeTaskLesson && stage !== "practice_task") {
+    redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=practice_task`);
   }
 
   const exercises = exercisesData ?? [];
@@ -244,10 +267,12 @@ export default async function LessonPage({
       ? null
       : lesson.lesson_type === "exam"
         ? null
-        : [
-            { key: "video", label: "Video", icon: PlayCircle },
-            { key: "exercises", label: "Exercises", icon: CheckCircle2 }
-          ];
+        : lesson.lesson_type === "practice_task"
+          ? [{ key: "practice_task", label: "Practice Task", icon: ClipboardList }]
+          : [
+              { key: "video", label: "Video", icon: PlayCircle },
+              { key: "exercises", label: "Exercises", icon: CheckCircle2 }
+            ];
 
   return (
     <main className="min-h-screen w-full px-5 py-8 sm:px-8 lg:px-10">
@@ -334,7 +359,14 @@ export default async function LessonPage({
         ) : null}
 
         <div>
-          {stage === "summary" ? (
+          {stage === "practice_task" ? (
+            <PracticeTaskStep
+              courseId={courseId}
+              lesson={lesson}
+              unitId={unit.id}
+              submission={practiceSubmission}
+            />
+          ) : stage === "summary" ? (
             <SummaryStep courseId={courseId} lesson={lesson} unitId={unit.id} />
           ) : stage === "video" ? (
             <VideoStep courseId={courseId} lesson={lesson} unitId={unit.id} />
@@ -365,11 +397,82 @@ export default async function LessonPage({
 }
 
 function normalizeStage(stage?: string): Stage {
-  if (stage === "exercises" || stage === "summary" || stage === "test") {
+  if (stage === "exercises" || stage === "summary" || stage === "test" || stage === "practice_task") {
     return stage;
   }
 
   return "video";
+}
+
+function PracticeTaskStep({
+  courseId,
+  lesson,
+  unitId,
+  submission,
+}: {
+  courseId: string;
+  lesson: Lesson;
+  unitId: string;
+  submission: PracticeTaskSubmission | null;
+}) {
+  const instructions =
+    typeof (lesson.content_json as Record<string, unknown>).instructions === "string"
+      ? (lesson.content_json as Record<string, unknown>).instructions as string
+      : "Complete the task described below and submit your written response. Your tutor will review it and provide personalised feedback.";
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-start gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--secondary-container)] text-[var(--secondary)]">
+            <ClipboardList strokeWidth={1.5} size={18} />
+          </div>
+          <div>
+            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Practice Task</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
+              Submit your response. Your tutor will review it and provide feedback.
+            </p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {submission ? (
+          <div className="space-y-5">
+            <PracticeTaskStatus
+              status={submission.status}
+              reviewerNotes={submission.reviewer_notes}
+              reviewedAt={submission.reviewed_at}
+            />
+            {submission.content_json?.response && (
+              <div className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
+                  Your submission
+                </p>
+                <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--on-surface)]">
+                  {submission.content_json.response}
+                </p>
+              </div>
+            )}
+            {submission.status === "revision_needed" && (
+              <PracticeTaskForm
+                courseId={courseId}
+                unitId={unitId}
+                lessonId={lesson.id}
+                instructions={instructions}
+              />
+            )}
+          </div>
+        ) : (
+          <PracticeTaskForm
+            courseId={courseId}
+            unitId={unitId}
+            lessonId={lesson.id}
+            instructions={instructions}
+          />
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function SummaryStep({ courseId, lesson, unitId }: { courseId: string; lesson: Lesson; unitId: string }) {

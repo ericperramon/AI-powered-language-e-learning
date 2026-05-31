@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Building2, Eye, Loader2, LockKeyhole, Mail, UserRound } from "lucide-react";
 import { registerCompany, registerEmployee } from "@/app/auth/actions";
@@ -71,20 +70,18 @@ export function AuthPanel() {
     <section className="grid min-h-screen bg-[var(--surface-container-lowest)] lg:grid-cols-[1.05fr_0.95fr]">
       <div className="flex min-h-[520px] flex-col items-center bg-[var(--primary)] px-6 py-8 text-[var(--on-primary)] sm:px-10 lg:h-screen lg:overflow-hidden lg:px-12 lg:py-10">
         <div className="flex shrink-0 items-center justify-center gap-3">
-          <span className="font-display text-xl font-bold text-white">GlossaAI</span>
+          <h1 className="font-display text-4xl font-bold text-white">GlossaAI</h1>
         </div>
-        <div className="mt-6 min-h-0 w-full flex-1 overflow-hidden rounded-2xl bg-[#070a16] shadow-2xl shadow-black/40">
-          <Image
-            alt="AI language learning network"
+        <div className="mt-6 w-full overflow-hidden rounded-2xl bg-[#070a16] shadow-2xl shadow-black/40 aspect-video">
+          <video
+            autoPlay
             className="h-full w-full object-cover object-center"
-            height={600}
-            priority
-            src="/images/language-network.svg"
-            width={920}
+            playsInline
+            src="/images/intro_login.mp4"
           />
         </div>
 
-        <div className="mt-6 w-full shrink-0 text-center">
+        <div className="mt-10 w-full shrink-0 text-center">
           <h1 className="font-display text-2xl font-bold leading-tight sm:text-3xl">
             Your Personal Language Teacher.
           </h1>
@@ -95,13 +92,13 @@ export function AuthPanel() {
             AI-driven conversations and adaptive lesson paths, designed for real fluency.
           </p>
 
-          <ul className="mt-4 space-y-2">
+          <ul className="mt-4 space-y-2 mx-auto w-fit">
             {[
               "Personalized AI tutor available round the clock",
               "Adaptive lessons that fit your pace and level",
               "Track progress with structured courses and tests"
             ].map((feature) => (
-              <li key={feature} className="flex items-center justify-center gap-2.5 text-sm text-white/85">
+              <li key={feature} className="flex items-center gap-2.5 text-sm text-white/85">
                 <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/20 text-[10px] font-bold text-white">
                   ✓
                 </span>

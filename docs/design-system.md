@@ -5,7 +5,7 @@ Fuente: `styleguide.html` proporcionado como referencia de sistema visual.
 ## Principios
 - **Approachable Intelligence**: la interfaz debe sentirse inteligente, calmada y accesible.
 - **Refined Minimalism**: cada elemento debe cumplir una funcion clara; evitar decoracion innecesaria.
-- **Sophisticated Calm**: usar contraste suave, superficies lavanda claras y jerarquia limpia para reducir carga cognitiva.
+- **Sophisticated Calm**: usar contraste suave, superficies calidas neutras y jerarquia limpia para reducir carga cognitiva.
 - **Tech-Forward Warmth**: estructura precisa con bordes suaves y senales de IA discretas, no estridentes.
 
 ## Tipografia
@@ -26,19 +26,20 @@ Fuente: `styleguide.html` proporcionado como referencia de sistema visual.
 ## Color
 Los tokens viven en `app/globals.css` y deben usarse antes que colores hardcodeados.
 
-- Superficie principal: `--background` / `--surface` `#fcf8ff`.
-- Texto principal: `--on-surface` `#1b1b22`.
-- Texto secundario: `--on-surface-variant` `#464553`.
-- Outline: `--outline` `#777584`.
-- Outline suave: `--outline-variant` `#c8c4d5`.
-- Primary: `--primary` `#514cbd`.
-- Primary hover/container: `--primary-container` `#6a66d8`.
-- Primary soft: `--primary-fixed` `#e2dfff`.
-- Secondary: `--secondary` `#5b5a87`.
-- Tertiary/rust para momentos puntuales: `--tertiary` `#99461a`.
+- Superficie principal: `--background` / `--surface` `#FDFAF6` (blanco calido neutro).
+- Texto principal: `--on-surface` `#1C1917`.
+- Texto secundario: `--on-surface-variant` `#4A4540`.
+- Outline: `--outline` `#7A7068`.
+- Outline suave: `--outline-variant` `#C9C0B5`.
+- Primary: `--primary` `#2A6F97` (azul acero).
+- Primary hover/container: `--primary-container` `#3988B5`.
+- Primary soft: `--primary-fixed` `#D6EDF7`.
+- Secondary: `--secondary` `#7A5C3E` (marron calido, para bordes y texto en botones outline).
+- Secondary container: `--secondary-container` `#F2E9D8` (crema calida, para chips y fondos suaves).
+- Tertiary/ambar para momentos puntuales: `--tertiary` `#C47A3A`.
 - Error: `--error` `#ba1a1a`.
 
-Evitar volver a introducir paletas `slate`, `orange` o morados arbitrarios salvo que se documenten como extension del sistema.
+Evitar volver a introducir paletas lavanda, morados arbitrarios o `slate` salvo que se documenten como extension del sistema.
 
 ## Espaciado, radios y elevacion
 - Espaciado base: `4, 8, 16, 24, 32, 48, 64px`.
@@ -66,7 +67,7 @@ Evitar volver a introducir paletas `slate`, `orange` o morados arbitrarios salvo
   - Altura base `44px`.
   - Fondo `--surface-container-low`.
   - Borde `1.5px` `--outline-variant`.
-  - Focus con `--primary` y ring `rgba(81,76,189,0.12)`.
+  - Focus con `--primary` y ring `rgba(42,111,151,0.15)`.
 - Chips:
   - Pildora con `--secondary-container` y texto `--on-secondary-container`.
 - Progreso:

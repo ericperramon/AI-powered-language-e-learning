@@ -5,6 +5,7 @@ import {
   BookOpen,
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
   FileText,
   Lock,
   PlayCircle,
@@ -37,12 +38,17 @@ type Lesson = {
   id: string;
   title: string;
   description: string | null;
-  lesson_type: "video" | "text" | "exercise" | "mixed" | "exam";
+  lesson_type: "video" | "text" | "exercise" | "mixed" | "exam" | "practice_task";
   sort_order: number;
   video_url: string | null;
   pdf_url: string | null;
   requires_exam: boolean;
   minimum_score_to_pass: number | string | null;
+};
+
+type PracticeTaskSubmission = {
+  lesson_id: string;
+  status: "pending" | "reviewed" | "revision_needed";
 };
 
 type LessonProgress = {
@@ -94,35 +100,46 @@ export default async function CoursePage({
     redirect("/dashboard?error=course-not-enrolled");
   }
 
-  const [{ data: course }, { data: unitsData }, { data: lessonProgressData }, { data: unitProgressData }] =
-    await Promise.all([
-      admin
-        .from("courses")
-        .select("id, title, description, target_language, level, estimated_duration_minutes")
-        .eq("id", courseId)
-        .single<Course>(),
-      admin
-        .from("units")
-        .select(
-          "id, title, description, sort_order, lessons(id, title, description, lesson_type, sort_order, video_url, pdf_url, requires_exam, minimum_score_to_pass)"
-        )
-        .eq("course_id", courseId)
-        .order("sort_order")
-        .order("sort_order", { foreignTable: "lessons" })
-        .returns<Unit[]>(),
-      admin
-        .from("lesson_progress")
-        .select("lesson_id, is_completed, video_completed, exercises_completed, exam_passed, score")
-        .eq("employee_id", user.id)
-        .eq("course_id", courseId)
-        .returns<LessonProgress[]>(),
-      admin
-        .from("unit_progress")
-        .select("unit_id, is_completed")
-        .eq("employee_id", user.id)
-        .eq("course_id", courseId)
-        .returns<UnitProgress[]>()
-    ]);
+  const [
+    { data: course },
+    { data: unitsData },
+    { data: lessonProgressData },
+    { data: unitProgressData },
+    { data: practiceSubmissionsData },
+  ] = await Promise.all([
+    admin
+      .from("courses")
+      .select("id, title, description, target_language, level, estimated_duration_minutes")
+      .eq("id", courseId)
+      .single<Course>(),
+    admin
+      .from("units")
+      .select(
+        "id, title, description, sort_order, lessons(id, title, description, lesson_type, sort_order, video_url, pdf_url, requires_exam, minimum_score_to_pass)"
+      )
+      .eq("course_id", courseId)
+      .order("sort_order")
+      .order("sort_order", { foreignTable: "lessons" })
+      .returns<Unit[]>(),
+    admin
+      .from("lesson_progress")
+      .select("lesson_id, is_completed, video_completed, exercises_completed, exam_passed, score")
+      .eq("employee_id", user.id)
+      .eq("course_id", courseId)
+      .returns<LessonProgress[]>(),
+    admin
+      .from("unit_progress")
+      .select("unit_id, is_completed")
+      .eq("employee_id", user.id)
+      .eq("course_id", courseId)
+      .returns<UnitProgress[]>(),
+    admin
+      .from("practice_task_submissions")
+      .select("lesson_id, status")
+      .eq("employee_id", user.id)
+      .eq("course_id", courseId)
+      .returns<PracticeTaskSubmission[]>(),
+  ]);
 
   if (!course) {
     redirect("/dashboard?error=course-not-found");
@@ -131,6 +148,7 @@ export default async function CoursePage({
   const units = unitsData ?? [];
   const lessonProgress = new Map((lessonProgressData ?? []).map((p) => [p.lesson_id, p]));
   const unitProgress = new Map((unitProgressData ?? []).map((p) => [p.unit_id, p]));
+  const practiceSubmissions = new Map((practiceSubmissionsData ?? []).map((s) => [s.lesson_id, s.status]));
   const progress = Math.min(Math.max(Number(enrollment.progress_percentage), 0), 100);
 
   const assistantContext: AssistantCourseContext = {
@@ -282,6 +300,7 @@ export default async function CoursePage({
                           lesson={lesson}
                           locked={!lessonUnlocked}
                           progress={lProgress}
+                          practiceStatus={practiceSubmissions.get(lesson.id)}
                         />
                       );
                     })}
@@ -398,48 +417,87 @@ function LessonCard({
   courseId,
   lesson,
   locked,
-  progress
+  progress,
+  practiceStatus,
 }: {
   courseId: string;
   lesson: Lesson;
   locked: boolean;
   progress?: LessonProgress;
+  practiceStatus?: "pending" | "reviewed" | "revision_needed";
 }) {
   const completed = Boolean(progress?.is_completed);
   const isSummary = lesson.lesson_type === "text" && lesson.pdf_url;
+  const isPracticeTask = lesson.lesson_type === "practice_task";
+
+  function getIcon() {
+    if (completed) return <CheckCircle2 strokeWidth={1.5} size={16} />;
+    if (locked) return <Lock strokeWidth={1.5} size={15} />;
+    if (isPracticeTask) return <ClipboardList strokeWidth={1.5} size={16} />;
+    if (isSummary) return <FileText strokeWidth={1.5} size={16} />;
+    return <PlayCircle strokeWidth={1.5} size={16} />;
+  }
+
+  function getHref() {
+    if (isPracticeTask) return `/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=practice_task`;
+    if (isSummary) return `/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=summary`;
+    return `/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=${progress?.video_completed ? "exercises" : "video"}`;
+  }
+
+  function getButtonLabel() {
+    if (isPracticeTask) {
+      if (completed) return "View submission";
+      return "Submit Task";
+    }
+    if (completed) return "Review";
+    if (progress?.video_completed) return "Continue";
+    return "Start";
+  }
+
+  function getPracticeStatusLabel() {
+    if (practiceStatus === "pending") return "· Pending review";
+    if (practiceStatus === "reviewed") return "· Reviewed ✓";
+    if (practiceStatus === "revision_needed") return "· Revision needed";
+    return null;
+  }
 
   return (
     <div
       className={`flex flex-col justify-between gap-4 rounded-xl border p-4 transition-colors ${
         locked
           ? "border-[var(--outline-variant)] bg-[var(--surface-container-low)] opacity-70"
-          : completed
+          : completed && !isPracticeTask
             ? "border-emerald-200 bg-emerald-50/40"
-            : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary-fixed-dim)]"
+            : isPracticeTask && completed
+              ? "border-[var(--secondary-fixed-dim)] bg-[var(--secondary-fixed)]"
+              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary-fixed-dim)]"
       }`}
     >
       <div className="flex items-start gap-3">
         <div
           className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-            completed
+            completed && !isPracticeTask
               ? "bg-emerald-100 text-emerald-600"
-              : locked
-                ? "bg-[var(--surface-container)] text-[var(--outline)]"
-                : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]"
+              : isPracticeTask && completed
+                ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)]"
+                : locked
+                  ? "bg-[var(--surface-container)] text-[var(--outline)]"
+                  : isPracticeTask
+                    ? "bg-[var(--secondary-container)] text-[var(--secondary)]"
+                    : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]"
           }`}
         >
-          {completed ? (
-            <CheckCircle2 strokeWidth={1.5} size={16} />
-          ) : locked ? (
-            <Lock strokeWidth={1.5} size={15} />
-          ) : isSummary ? (
-            <FileText strokeWidth={1.5} size={16} />
-          ) : (
-            <PlayCircle strokeWidth={1.5} size={16} />
-          )}
+          {getIcon()}
         </div>
         <div>
-          <p className="text-xs font-medium text-[var(--outline)]">Lesson {lesson.sort_order}</p>
+          <p className="text-xs font-medium text-[var(--outline)]">
+            Lesson {lesson.sort_order}
+            {isPracticeTask && practiceStatus && (
+              <span className={`ml-1 ${practiceStatus === "reviewed" ? "text-[var(--primary)]" : practiceStatus === "revision_needed" ? "text-orange-600" : "text-amber-600"}`}>
+                {getPracticeStatusLabel()}
+              </span>
+            )}
+          </p>
           <h3 className="font-semibold text-[var(--on-surface)]">{lesson.title}</h3>
           {lesson.description && (
             <p className="mt-0.5 text-sm leading-5 text-[var(--on-surface-variant)]">{lesson.description}</p>
@@ -453,16 +511,16 @@ function LessonCard({
       ) : (
         <Link
           className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors ${
-            completed
+            completed && !isPracticeTask
               ? "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
-              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--primary-fixed)] hover:border-[var(--primary-fixed-dim)]"
+              : isPracticeTask && completed
+                ? "border-[var(--secondary-fixed-dim)] bg-[var(--surface-container-lowest)] text-[var(--secondary)] hover:bg-[var(--secondary-fixed)]"
+                : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--primary-fixed)] hover:border-[var(--primary-fixed-dim)]"
           }`}
-          href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=${
-            isSummary ? "summary" : progress?.video_completed ? "exercises" : "video"
-          }`}
+          href={getHref()}
         >
-          {isSummary ? <FileText size={14} /> : <BookOpen size={14} />}
-          {completed ? "Review" : progress?.video_completed ? "Continue" : "Start"}
+          {isPracticeTask ? <ClipboardList size={14} /> : isSummary ? <FileText size={14} /> : <BookOpen size={14} />}
+          {getButtonLabel()}
         </Link>
       )}
     </div>

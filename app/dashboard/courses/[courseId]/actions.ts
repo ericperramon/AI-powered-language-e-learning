@@ -385,6 +385,52 @@ export async function submitUnitTestExercises(formData: FormData) {
   redirect(`/dashboard/courses/${courseId}/lessons/${examLessonId}?stage=test`);
 }
 
+export async function submitPracticeTask(formData: FormData) {
+  const courseId = readText(formData, "courseId");
+  const unitId = readText(formData, "unitId");
+  const lessonId = readText(formData, "lessonId");
+  const response = readText(formData, "response");
+
+  if (!courseId || !unitId || !lessonId) {
+    redirect("/dashboard?error=missing-learning-context");
+  }
+
+  const { userId } = await getActiveEnrollment(courseId);
+  const admin = createSupabaseAdminClient();
+  const now = new Date().toISOString();
+
+  await admin.from("practice_task_submissions").upsert(
+    {
+      employee_id: userId,
+      lesson_id: lessonId,
+      unit_id: unitId,
+      course_id: courseId,
+      content_json: { response },
+      status: "pending",
+      updated_at: now,
+    },
+    { onConflict: "employee_id,lesson_id" }
+  );
+
+  await admin.from("lesson_progress").upsert(
+    {
+      employee_id: userId,
+      lesson_id: lessonId,
+      unit_id: unitId,
+      course_id: courseId,
+      is_unlocked: true,
+      is_completed: true,
+      completed_at: now,
+      updated_at: now,
+    },
+    { onConflict: "employee_id,lesson_id" }
+  );
+
+  await updateEnrollmentProgress(userId, courseId, lessonId);
+
+  redirect(`/dashboard/courses/${courseId}?success=task-submitted`);
+}
+
 export async function submitUnitTest(formData: FormData) {
   const courseId = readText(formData, "courseId");
   const unitId = readText(formData, "unitId");
