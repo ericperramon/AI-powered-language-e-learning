@@ -6,16 +6,16 @@ import { BookOpen, CheckCircle2, X } from "lucide-react";
 
 export function RedeemSuccessModal({ show }: { show: boolean }) {
   const [visible, setVisible] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // Derive initial mount from `show` (a server-rendered prop) instead of
+  // setting state synchronously inside the effect.
+  const [mounted, setMounted] = useState(show);
   const router = useRouter();
 
   useEffect(() => {
-    if (show) {
-      setMounted(true);
-      // slight delay so the animation triggers after mount
-      const t = setTimeout(() => setVisible(true), 30);
-      return () => clearTimeout(t);
-    }
+    if (!show) return;
+    // slight delay so the animation triggers after mount
+    const t = setTimeout(() => setVisible(true), 30);
+    return () => clearTimeout(t);
   }, [show]);
 
   function close() {

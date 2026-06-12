@@ -9,11 +9,17 @@ import {
   buildAssistantSystemPrompt,
   type AssistantCourseContext
 } from "@/lib/assistant/system-prompt";
+import { guardAssistantRequest } from "@/lib/assistant/guard";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
+    const guard = await guardAssistantRequest();
+    if (!guard.ok) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status });
+    }
+
     const webhookUrl = process.env.N8N_ASSISTANT_TEXT_WEBHOOK_URL;
 
     if (!webhookUrl) {

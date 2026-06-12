@@ -9,12 +9,12 @@ El proyecto está en fase de definición conceptual / pre-MVP.
 Actualmente existen flujos generales de la plataforma, una idea clara del asistente IA y una propuesta de generación de contenido educativo mediante inteligencia artificial.
 Existe un scaffold inicial de aplicación Next.js con pantalla de acceso centrada, login, onboarding para elegir tipo de cuenta, registro de empresa, registro de empleado, panel de empresa, compra simulada de cursos con generación de claves y canje de claves por empleados.
 El panel del alumno ya enlaza cada matrícula con un flujo navegable de curso en `/dashboard/courses/[courseId]`: unidades ordenadas, lecciones bloqueadas hasta completar la anterior, paso de vídeo, paso de ejercicios interactivos con corrección básica, lección de resumen PDF y prueba puntuable final con umbral mínimo del 80%.
-Existe un primer asistente IA global en la esquina inferior derecha de la interfaz, implementado como robot animado. Permite iniciar conversaciones persistentes en modo texto o modo voz, y reenvía los mensajes a webhooks externos de n8n separados para texto y audio mediante la ruta server-side `/api/assistant`.
+Existe un primer asistente IA global en la esquina inferior derecha de la interfaz, implementado como robot animado. Permite iniciar conversaciones persistentes en modo texto o modo voz, y reenvía los mensajes a webhooks externos de n8n separados para texto y audio mediante la ruta server-side `/api/assistant`. El modo voz usa OpenAI Realtime a través de `/api/assistant/session`. Ambas rutas (`/api/assistant` y `/api/assistant/session`) exigen usuario autenticado y aplican un rate limit por usuario mediante el guard `lib/assistant/guard.ts`; sin sesión devuelven `401` y al superar el límite `429`. El refresco de sesión SSR de Supabase lo gestiona `proxy.ts` en la raíz (equivalente al middleware en Next.js 16).
 La UI aplica el Design System documentado en `docs/design-system.md`: Inter para texto, Montserrat para titulares, superficies calidas neutras, primary `#2A6F97` (azul acero), secondary container `#F2E9D8` (crema calida), radios suaves, outlines discretos y elevacion contenida. La pantalla de acceso usa un layout dividido con bloque visual de marca e imagen educativa en `public/images/language-network.svg`; el dashboard y las pantallas de curso usan los mismos tokens visuales y componentes base.
 Existe un primer esquema SQL en `supabase/schema.sql` para Supabase/PostgreSQL orientado a una plataforma B2B con empresas, empleados, cursos, paquetes de licencias, claves de acceso, progreso, ejercicios, asistente IA, RAG y certificados.
 El esquema mantiene RLS activo y enlaza `public.profiles` con `auth.users`; queda pendiente validarlo contra una instancia real de Supabase y definir las migraciones operativas.
-Existe configuración inicial de tests unitarios con Vitest. Los tests se ubican en `unit-test/` y cubren la lógica del contrato del webhook del asistente y utilidades transversales.
-Existe una landing page pública en `/` (antes redirigía directamente a `/auth`). La página muestra: vídeo de demo de la plataforma (placeholder), vídeo de presentación de profesores (placeholder), vídeo de presentación del asistente IA (placeholder), catálogo de cursos activos con CTA de registro y un formulario de solicitud de nuevo curso ("¿No encuentras tu curso?") que guarda la solicitud en la tabla `course_requests` mediante la Server Action `submitCourseRequest` en `app/explore-actions.ts`. Los usuarios ya autenticados que visiten `/` son redirigidos automáticamente a `/dashboard`.
+Existe configuración de tests unitarios con Vitest (46 tests en verde). Los tests se ubican en `unit-test/` y cubren: el contrato del webhook del asistente, la corrección de ejercicios (incluido el formato de mapa plano y selección múltiple), la construcción del system prompt del asistente (`assistant-system-prompt.test.ts`), el rate limiter de los endpoints de IA (`assistant-guard.test.ts`) y utilidades transversales.
+Existe una landing page pública en `/` (antes redirigía directamente a `/auth`). La página muestra: vídeo de demo de la plataforma (placeholder), vídeo de presentación de profesores (placeholder), vídeo de presentación del asistente IA (placeholder), catálogo de cursos activos con CTA de registro y un formulario de solicitud de nuevo curso ("¿No encuentras tu curso?") que guarda la solicitud en la tabla `course_requests` mediante la Server Action `submitCourseRequest` en `app/explore-actions.ts`. Los usuarios ya autenticados que visiten `/` son redirigidos automáticamente a `/dashboard`. El hero de la landing usa un layout editorial asimétrico cuyo elemento de firma es una tarjeta de conversación alumno/profesor IA (`.lesson-exchange`) con corrección inline, en lugar de un placeholder genérico; se apoya en las nuevas utilidades del Design System `.ds-eyebrow` y `.lesson-exchange` (documentadas en `docs/design-system.md`, todas basadas en tokens existentes). El antetítulo `.ds-eyebrow` se reutiliza en la cabecera del dashboard para dar cohesión.
 
 ## Modelo funcional
 El sistema se divide en varios bloques:
@@ -82,7 +82,10 @@ La pantalla de acceso muestra login por defecto. Si el usuario pulsa `Crear cuen
 - Definición funcional del asistente IA
 - Flujos de registro, aprendizaje y práctica
 - `lib/assistant/webhook.ts`
+- `lib/assistant/guard.ts` (auth + rate limit de los endpoints de IA)
+- `proxy.ts` (refresco de sesión Supabase SSR en Next.js 16)
 - `docs/design-system.md`
+- `IMPORTANT_FIXES.md` (revisión de seguridad/errores y decisiones pendientes)
 - `public/images/`
 - `unit-test/`
 
@@ -95,6 +98,8 @@ La pantalla de acceso muestra login por defecto. Si el usuario pulsa `Crear cuen
 - Definir si el catálogo de cursos será global para usuarios autenticados o estará limitado por empresa.
 - Definir si los administradores de empresa podrán ver conversaciones IA de empleados o solo métricas agregadas.
 - Definir el flujo transaccional de generación de claves para consumir licencias compradas sin exceder paquetes.
+- Sustituir la calificación auto-reportada de exámenes sin ejercicios (`submitUnitTest`, donde el alumno escribe su propia nota) por exámenes con ejercicios estructurados corregidos en servidor o por revisión humana. Detalle en `IMPORTANT_FIXES.md`.
+- Respaldar el rate limiter de los endpoints de IA (hoy en memoria por instancia) con un store compartido tipo Redis/Upstash para producción.
 - Validar el flujo real con un proyecto Supabase configurado y al menos un curso activo creado.
 - Cargar contenido real de unidades, lecciones, vídeos, ejercicios, PDFs y pruebas para comprobar el flujo de alumno extremo a extremo.
 - Validar el contrato exacto de entrada/salida del webhook de n8n para texto y audio. La ruta `/api/assistant` acepta respuestas JSON con `reply`, `response`, `message`, `text` u `output`, o texto plano.

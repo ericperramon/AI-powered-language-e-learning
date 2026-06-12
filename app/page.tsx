@@ -65,32 +65,78 @@ export default async function LandingPage({
 
       {/* ── Hero ──────────────────────────────────────────────── */}
       <section className="app-container py-16 sm:py-24">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="ds-chip mb-4 inline-flex">Plataforma e-learning con IA</span>
-          <h1 className="font-display mt-4 text-4xl font-bold leading-tight text-[var(--on-surface)] sm:text-5xl">
-            Aprende idiomas con IA,<br className="hidden sm:block" /> a tu ritmo
-          </h1>
-          <p className="mt-6 text-lg leading-8 text-[var(--on-surface-variant)]">
-            Contenido educativo de calidad, un asistente IA disponible 24/7 y seguimiento
-            de tu progreso. Todo en una sola plataforma.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <a href="#cursos">
-              <Button variant="primary" className="h-11 gap-2 px-6">
-                Ver cursos disponibles
-                <ArrowRight size={16} strokeWidth={2} />
-              </Button>
-            </a>
-            <Link href="/auth?mode=signin">
-              <Button variant="secondary" className="h-11 px-6">
-                Ya tengo cuenta
-              </Button>
-            </Link>
+        <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+          {/* Left: editorial thesis */}
+          <div>
+            <span className="ds-eyebrow">Aprendizaje de idiomas con IA</span>
+            <h1 className="font-display mt-5 text-4xl font-bold leading-[1.05] tracking-tight text-[var(--on-surface)] sm:text-5xl lg:text-6xl">
+              Un profesor de idiomas
+              <span className="text-[var(--primary)]"> que nunca cierra</span>.
+            </h1>
+            <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--on-surface-variant)]">
+              Conversa, equivócate y corrige al instante con un asistente IA disponible 24/7.
+              Contenido estructurado, ejercicios guiados y seguimiento real de tu progreso.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a href="#cursos">
+                <Button variant="primary" className="h-12 gap-2 px-6 text-base">
+                  Ver cursos disponibles
+                  <ArrowRight size={18} strokeWidth={2} />
+                </Button>
+              </a>
+              <Link href="/auth?mode=signin">
+                <Button variant="secondary" className="h-12 px-6 text-base">
+                  Ya tengo cuenta
+                </Button>
+              </Link>
+            </div>
+            <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-4">
+              {[
+                { value: "24/7", label: "Asistente IA disponible" },
+                { value: "Al instante", label: "Corrección de tus errores" },
+                { value: "A1–C1", label: "Niveles cubiertos" },
+              ].map((stat) => (
+                <div key={stat.label}>
+                  <dt className="font-display text-2xl font-bold text-[var(--on-surface)]">{stat.value}</dt>
+                  <dd className="mt-0.5 text-sm text-[var(--on-surface-variant)]">{stat.label}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          {/* Right: live lesson exchange — the signature element */}
+          <div className="lesson-exchange" aria-label="Ejemplo de conversación con el profesor IA">
+            <div className="lesson-exchange-head">
+              <Brain size={18} strokeWidth={1.5} />
+              <span className="font-display text-sm font-semibold">Tu profesor IA</span>
+              <span className="lesson-exchange-status">En línea</span>
+            </div>
+            <div className="lesson-exchange-body">
+              <p className="lesson-bubble lesson-bubble-student">
+                <span className="lesson-bubble-label">Tú</span>
+                Yesterday I go to the conference and speak with three clients.
+              </p>
+              <p className="lesson-bubble lesson-bubble-tutor">
+                <span className="lesson-bubble-label">Profesor IA</span>
+                Casi perfecto. En pasado decimos{" "}
+                <span className="lesson-correction">I went</span> y{" "}
+                <span className="lesson-correction">spoke</span>. ¿Lo intentas otra vez?
+              </p>
+              <p className="lesson-bubble lesson-bubble-student">
+                <span className="lesson-bubble-label">Tú</span>
+                Yesterday I went to the conference and spoke with three clients.
+              </p>
+              <span className="lesson-typing" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </div>
           </div>
         </div>
 
         {/* Demo video placeholder */}
-        <div className="mx-auto mt-14 max-w-4xl">
+        <div className="mx-auto mt-16 max-w-4xl">
           <VideoPlaceholder label="Vídeo de demostración de la plataforma" tall />
         </div>
       </section>
@@ -220,17 +266,33 @@ export default async function LandingPage({
 /* ── Helpers ──────────────────────────────────────────────────────────────── */
 
 function VideoPlaceholder({ label, tall }: { label: string; tall?: boolean }) {
+  const playSize = tall ? "h-20 w-20" : "h-16 w-16";
   return (
-    <div
-      className={`flex w-full items-center justify-center gap-3 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container)] ${
-        tall ? "aspect-video" : "aspect-video"
-      }`}
-    >
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[var(--primary-fixed)]">
-        <Play size={20} strokeWidth={1.5} className="translate-x-0.5 text-[var(--on-primary-fixed-variant)]" />
+    <figure className="group relative aspect-video w-full overflow-hidden rounded-[var(--r-xl)] border border-[var(--outline-variant)] bg-gradient-to-br from-[var(--surface-container-low)] via-[var(--surface-container)] to-[var(--surface-container-high)]">
+      {/* Subtle film-frame grid so the empty state reads as intentional media, not a blank box */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 opacity-[0.4]"
+        style={{
+          backgroundImage:
+            "linear-gradient(var(--outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--outline-variant) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+          maskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)",
+          WebkitMaskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)"
+        }}
+      />
+      <span className="ds-chip absolute left-4 top-4">Próximamente</span>
+      <div className="relative flex h-full flex-col items-center justify-center gap-4 px-6 text-center">
+        <span
+          className={`flex ${playSize} items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary)] shadow-[0_14px_36px_rgba(42,111,151,0.30)] transition-transform duration-300 group-hover:scale-105`}
+        >
+          <Play size={tall ? 30 : 26} strokeWidth={1.5} className="translate-x-0.5" />
+        </span>
+        <figcaption className="max-w-xs text-sm font-medium leading-6 text-[var(--on-surface-variant)]">
+          {label}
+        </figcaption>
       </div>
-      <p className="text-sm font-medium text-[var(--on-surface-variant)]">{label}</p>
-    </div>
+    </figure>
   );
 }
 

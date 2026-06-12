@@ -147,6 +147,158 @@ a {
   text-transform: uppercase;
 }
 
+/* ── Editorial eyebrow ──────────────────────────────────────────────
+   A structural label that encodes the product's one-line thesis.
+   Uses a leading rule instead of a pill so it reads as a kicker, not a tag. */
+.ds-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--on-surface-variant);
+}
+
+.ds-eyebrow::before {
+  content: "";
+  width: 28px;
+  height: 2px;
+  border-radius: var(--r-full);
+  background: var(--primary);
+}
+
+/* ── Hero signature: live AI lesson exchange ────────────────────────
+   Grounds the hero in the subject's own world (a tutoring conversation)
+   rather than a generic media placeholder. All colors come from tokens. */
+.lesson-exchange {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-xl);
+  background: var(--surface-container-lowest);
+  box-shadow: 0 24px 60px rgba(28, 25, 23, 0.10);
+}
+
+.lesson-exchange-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.lesson-exchange-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.lesson-exchange-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-full);
+  background: #6ee7a8;
+  box-shadow: 0 0 0 3px rgba(110, 231, 168, 0.28);
+}
+
+.lesson-exchange-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 20px 24px;
+}
+
+.lesson-bubble {
+  max-width: 84%;
+  border-radius: var(--r-lg);
+  padding: 12px 15px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.lesson-bubble-student {
+  align-self: flex-end;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  border-bottom-right-radius: var(--r-sm);
+}
+
+.lesson-bubble-tutor {
+  align-self: flex-start;
+  background: var(--primary-fixed);
+  color: var(--on-primary-fixed);
+  border-bottom-left-radius: var(--r-sm);
+}
+
+.lesson-bubble-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* Inline correction: encodes the product's core value (instant correction). */
+.lesson-correction {
+  text-decoration: underline;
+  text-decoration-color: var(--tertiary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.lesson-typing {
+  display: inline-flex;
+  gap: 4px;
+  align-self: flex-start;
+  padding: 14px 16px;
+}
+
+.lesson-typing span {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--outline);
+  opacity: 0.5;
+  animation: lesson-typing 1.2s ease-in-out infinite;
+}
+
+.lesson-typing span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.lesson-typing span:nth-child(3) {
+  animation-delay: 0.36s;
+}
+
+@keyframes lesson-typing {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.45;
+  }
+  30% {
+    transform: translateY(-4px);
+    opacity: 0.9;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lesson-typing span {
+    animation: none;
+  }
+}
+
 .assistant-chat-panel {
   display: flex;
   width: min(410px, calc(100vw - 2.5rem));

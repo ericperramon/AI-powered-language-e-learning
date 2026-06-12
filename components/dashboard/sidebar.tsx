@@ -45,7 +45,7 @@ export function DashboardSidebar({
     exact ? pathname === href : pathname.startsWith(href);
 
   /* ── Expanded desktop content ── */
-  const ExpandedContent = () => (
+  const renderExpanded = () => (
     <>
       <div className="flex h-16 items-center justify-between border-b border-[var(--outline-variant)] px-5">
         <div className="flex items-center gap-3">
@@ -142,7 +142,7 @@ export function DashboardSidebar({
   );
 
   /* ── Collapsed desktop content ── */
-  const CollapsedContent = () => (
+  const renderCollapsed = () => (
     <>
       <div className="flex h-16 items-center justify-center border-b border-[var(--outline-variant)]">
         <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--primary)] shadow-[0_4px_14px_rgba(81,76,189,0.32)]">
@@ -234,11 +234,11 @@ export function DashboardSidebar({
       >
         {/* Desktop: show collapsed or expanded content */}
         <div className="hidden h-full flex-col lg:flex">
-          {collapsed ? <CollapsedContent /> : <ExpandedContent />}
+          {collapsed ? renderCollapsed() : renderExpanded()}
         </div>
         {/* Mobile: always expanded content */}
         <div className="flex h-full flex-col lg:hidden">
-          <ExpandedContent />
+          {renderExpanded()}
         </div>
       </aside>
     </>

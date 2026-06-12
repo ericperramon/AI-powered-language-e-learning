@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select } from "@/components/ui/select";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { PurchaseForm } from "@/components/purchase-form";
 import { RedeemSuccessModal } from "@/components/redeem-success-modal";
@@ -112,8 +111,8 @@ export default async function DashboardPage({
       <div className="mx-auto max-w-6xl">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-sm font-medium text-[var(--outline)]">{isAdmin ? "Company" : "Student"} Dashboard</p>
-            <h1 className="font-display mt-1 text-3xl font-bold leading-tight text-[var(--on-surface)] sm:text-4xl">
+            <span className="ds-eyebrow">{isAdmin ? "Company workspace" : "Student workspace"}</span>
+            <h1 className="font-display mt-3 text-3xl font-bold leading-tight text-[var(--on-surface)] sm:text-4xl">
               Welcome back, {firstName}
             </h1>
           </div>

@@ -373,50 +373,6 @@ export default async function CoursePage({
   );
 }
 
-function StatusBadge({
-  locked,
-  completed,
-  total,
-  done
-}: {
-  locked: boolean;
-  completed: boolean;
-  total: number;
-  done: number;
-}) {
-  if (completed) {
-    return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-medium text-emerald-700">
-        <CheckCircle2 strokeWidth={1.5} size={15} />
-        Completed
-      </span>
-    );
-  }
-
-  if (locked) {
-    return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--surface-container)] px-3 py-1.5 text-sm font-medium text-[var(--outline)]">
-        <Lock strokeWidth={1.5} size={15} />
-        Locked
-      </span>
-    );
-  }
-
-  if (total > 0) {
-    return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[var(--primary-fixed)] px-3 py-1.5 text-sm font-medium text-[var(--on-primary-fixed-variant)]">
-        {done}/{total} lessons
-      </span>
-    );
-  }
-
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-full bg-[var(--primary-fixed)] px-3 py-1.5 text-sm font-medium text-[var(--on-primary-fixed-variant)]">
-      Available
-    </span>
-  );
-}
-
 function LessonCard({
   courseId,
   lesson,

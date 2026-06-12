@@ -304,7 +304,7 @@ function Panel({
             </h3>
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
               <p className="mb-3 text-sm text-red-800">
-                Permanently deletes this employee's account, enrollments, and all progress. This cannot be undone.
+                Permanently deletes this employee&apos;s account, enrollments, and all progress. This cannot be undone.
               </p>
               {deleteStep === "idle" ? (
                 <button

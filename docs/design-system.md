@@ -70,6 +70,16 @@ Evitar volver a introducir paletas lavanda, morados arbitrarios o `slate` salvo 
   - Focus con `--primary` y ring `rgba(42,111,151,0.15)`.
 - Chips:
   - Pildora con `--secondary-container` y texto `--on-secondary-container`.
+- Eyebrow editorial (`.ds-eyebrow`):
+  - Kicker en mayusculas con tracking amplio (`0.12em`) y una regla corta de `2px` en `--primary` como prefijo.
+  - Uso: etiqueta estructural sobre titulares (hero de landing, cabecera de dashboard). Codifica la tesis de la seccion, no decora.
+  - Preferir sobre `.ds-chip` cuando el texto actua como antetitulo y no como etiqueta de dato.
+- Hero signature — intercambio de leccion (`.lesson-exchange`):
+  - Tarjeta que representa una conversacion real alumno/profesor IA (el diferencial del producto) en lugar de un placeholder generico.
+  - Cabecera en `--primary` con indicador "en linea"; burbujas de alumno en `--secondary-container` y de tutor en `--primary-fixed`.
+  - Correccion inline con subrayado en `--tertiary` (`.lesson-correction`) para mostrar el valor de "correccion instantanea".
+  - Animacion de "escribiendo" (`.lesson-typing`) desactivada con `prefers-reduced-motion`.
+  - Todos los colores provienen de tokens; no introducir colores nuevos al reutilizar este patron.
 - Progreso:
   - Track `--surface-container-highest` o `--primary-fixed-dim`.
   - Fill `--primary`.

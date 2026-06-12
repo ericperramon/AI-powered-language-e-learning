@@ -1,12 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, FileText, Lock, PlayCircle, Trophy } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, FileText, Lock, Play, PlayCircle, Trophy } from "lucide-react";
 import {
   completeLessonVideo,
   completeSummaryLesson,
   submitLessonExercises,
   submitSingleExercise,
-  submitPracticeTask,
   submitUnitTest,
   submitUnitTestExercises
 } from "@/app/dashboard/courses/[courseId]/actions";
@@ -574,9 +573,26 @@ function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Les
             />
           </div>
         ) : (
-          <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-6 text-center text-sm leading-6 text-[var(--outline)]">
-            Video pending. Once the content is added, the lesson video will appear here.
-          </div>
+          <figure className="relative flex aspect-video w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-lg border border-[var(--outline-variant)] bg-gradient-to-br from-[var(--surface-container-low)] via-[var(--surface-container)] to-[var(--surface-container-high)] p-6 text-center">
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 opacity-[0.4]"
+              style={{
+                backgroundImage:
+                  "linear-gradient(var(--outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--outline-variant) 1px, transparent 1px)",
+                backgroundSize: "44px 44px",
+                maskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)",
+                WebkitMaskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)"
+              }}
+            />
+            <span className="ds-chip absolute left-4 top-4">Coming soon</span>
+            <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary)] shadow-[0_14px_36px_rgba(42,111,151,0.30)]">
+              <Play size={24} strokeWidth={1.5} className="translate-x-0.5" />
+            </span>
+            <figcaption className="relative max-w-xs text-sm leading-6 text-[var(--on-surface-variant)]">
+              Video pending. Once the content is added, the lesson video will appear here.
+            </figcaption>
+          </figure>
         )}
 
         <form action={completeLessonVideo} className="mt-5">
@@ -824,7 +840,6 @@ function ExerciseAnswerControl({
         />
       ) : textBlanksData ? (
         <TextBlanksExercise
-          blankIds={textBlanksData.blankIds}
           exerciseId={exercise.id}
           previousAnswers={previousAnswer}
           sentence={textBlanksData.sentence}
@@ -1431,12 +1446,10 @@ function getExerciseTextBlanks(content: Record<string, unknown>) {
 }
 
 function TextBlanksExercise({
-  blankIds,
   exerciseId,
   previousAnswers,
   sentence
 }: {
-  blankIds: string[];
   exerciseId: string;
   previousAnswers: Record<string, string>;
   sentence: string;
