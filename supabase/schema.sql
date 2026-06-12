@@ -12,7 +12,7 @@ create extension if not exists "vector";
 -- ENUMS
 -- =========================================================
 
-create type public.user_role as enum ('admin', 'alumno');
+create type public.user_role as enum ('admin', 'alumno', 'superadmin');
 create type public.lesson_type as enum ('video', 'text', 'exercise', 'mixed', 'exam');
 create type public.exercise_type as enum ('test', 'writing', 'speaking', 'fill_blank', 'audio', 'conversation');
 create type public.message_role as enum ('user', 'assistant', 'system');
@@ -1041,6 +1041,22 @@ create policy "Admins read company practice submissions"
 create trigger practice_task_submissions_set_updated_at
   before update on public.practice_task_submissions
   for each row execute procedure public.set_updated_at();
+
+-- =========================================================
+-- COURSE REQUESTS (public landing — no auth required)
+-- =========================================================
+
+create table public.course_requests (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  contact text not null,
+  sector text not null,
+  created_at timestamptz not null default now()
+);
+
+alter table public.course_requests enable row level security;
+
+-- Only service_role (admin client) can read; inserts are done server-side via admin client.
 
 -- =========================================================
 -- GRANTS

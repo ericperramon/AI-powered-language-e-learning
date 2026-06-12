@@ -14,6 +14,7 @@ La UI aplica el Design System documentado en `docs/design-system.md`: Inter para
 Existe un primer esquema SQL en `supabase/schema.sql` para Supabase/PostgreSQL orientado a una plataforma B2B con empresas, empleados, cursos, paquetes de licencias, claves de acceso, progreso, ejercicios, asistente IA, RAG y certificados.
 El esquema mantiene RLS activo y enlaza `public.profiles` con `auth.users`; queda pendiente validarlo contra una instancia real de Supabase y definir las migraciones operativas.
 Existe configuración inicial de tests unitarios con Vitest. Los tests se ubican en `unit-test/` y cubren la lógica del contrato del webhook del asistente y utilidades transversales.
+Existe una landing page pública en `/` (antes redirigía directamente a `/auth`). La página muestra: vídeo de demo de la plataforma (placeholder), vídeo de presentación de profesores (placeholder), vídeo de presentación del asistente IA (placeholder), catálogo de cursos activos con CTA de registro y un formulario de solicitud de nuevo curso ("¿No encuentras tu curso?") que guarda la solicitud en la tabla `course_requests` mediante la Server Action `submitCourseRequest` en `app/explore-actions.ts`. Los usuarios ya autenticados que visiten `/` son redirigidos automáticamente a `/dashboard`.
 
 ## Modelo funcional
 El sistema se divide en varios bloques:

@@ -9,13 +9,15 @@ import {
   KeyRound,
   ShieldCheck
 } from "lucide-react";
-import { purchaseCourse, redeemAccessKey } from "@/app/dashboard/actions";
+import { redeemAccessKey } from "@/app/dashboard/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { PurchaseForm } from "@/components/purchase-form";
+import { RedeemSuccessModal } from "@/components/redeem-success-modal";
 
 type Course = {
   id: string;
@@ -141,7 +143,7 @@ export default async function DashboardPage({
       {isAdmin ? (
         <AdminDashboard courses={courses} companyId={profile.company_id} profile={profile} />
       ) : (
-        <StudentDashboard profile={profile} />
+        <StudentDashboard profile={profile} successParam={params.success} />
       )}
     </main>
   );
@@ -175,32 +177,7 @@ function AdminDashboard({
           </div>
         </CardHeader>
         <CardContent>
-          <form action={purchaseCourse} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="courseId">Available course</Label>
-              <Select id="courseId" name="courseId" required>
-                <option value="">Select a course</option>
-                {courses.map((course) => (
-                  <option key={course.id} value={course.id}>
-                    {course.title} · {course.level ?? "Level not set"}
-                  </option>
-                ))}
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="licenses">Employee keys</Label>
-              <Input id="licenses" min={1} max={100} name="licenses" required type="number" defaultValue={5} />
-            </div>
-            <Button className="h-11 w-full rounded-lg text-sm font-semibold" disabled={courses.length === 0} type="submit">
-              <KeyRound strokeWidth={1.5} size={16} />
-              Purchase and generate keys
-            </Button>
-            {courses.length === 0 ? (
-              <p className="text-sm leading-6 text-[var(--on-surface-variant)]">
-                There are no active courses in the database. Create a course in Supabase to continue.
-              </p>
-            ) : null}
-          </form>
+          <PurchaseForm courses={courses} />
         </CardContent>
       </Card>
 
@@ -295,9 +272,10 @@ async function CompanyKeys({ companyId }: { companyId: string | null }) {
 
 /* ─── Student ────────────────────────────────────────────────────────────── */
 
-function StudentDashboard({ profile }: { profile: Profile }) {
+function StudentDashboard({ profile, successParam }: { profile: Profile; successParam?: string }) {
   return (
     <div className="mx-auto mt-8 w-full max-w-6xl">
+      <RedeemSuccessModal show={successParam === "key-redeemed"} />
       <div className="grid gap-6 xl:grid-cols-[1fr_320px]">
         <EmployeeEnrollments />
         <div className="space-y-6">

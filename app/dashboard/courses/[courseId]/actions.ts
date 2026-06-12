@@ -30,6 +30,20 @@ async function getActiveEnrollment(courseId: string): Promise<{ userId: string; 
   }
 
   const admin = createSupabaseAdminClient();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single<{ role: string }>();
+
+  if (profile?.role === "superadmin") {
+    return {
+      userId: user.id,
+      enrollment: { id: "preview", company_id: "", course_id: courseId }
+    };
+  }
+
   const { data: enrollment, error } = await admin
     .from("enrollments")
     .select("id, company_id, course_id")
@@ -102,6 +116,7 @@ export async function completeLessonVideo(formData: FormData) {
   const courseId = readText(formData, "courseId");
   const unitId = readText(formData, "unitId");
   const lessonId = readText(formData, "lessonId");
+  const lessonType = readText(formData, "lessonType");
 
   if (!courseId || !unitId || !lessonId) {
     redirect("/dashboard?error=missing-learning-context");
@@ -109,6 +124,12 @@ export async function completeLessonVideo(formData: FormData) {
 
   const { userId } = await getActiveEnrollment(courseId);
   const admin = createSupabaseAdminClient();
+
+  if (lessonType === "video") {
+    await markLessonExercisesCompleted(admin, userId, courseId, unitId, lessonId);
+    await updateEnrollmentProgress(userId, courseId, lessonId);
+    redirect(`/dashboard/courses/${courseId}?success=lesson-completed`);
+  }
 
   await admin.from("lesson_progress").upsert(
     {
@@ -189,7 +210,107 @@ export async function submitLessonExercises(formData: FormData) {
   redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=exercises&error=exercise-failed`);
 }
 
+export async function submitSingleExercise(formData: FormData) {
+  const courseId = readText(formData, "courseId");
+  const unitId = readText(formData, "unitId");
+  const lessonId = readText(formData, "lessonId");
+  const exerciseId = readText(formData, "exerciseId");
+
+  if (!courseId || !unitId || !lessonId || !exerciseId) {
+    redirect("/dashboard?error=missing-learning-context");
+  }
+
+  const { userId } = await getActiveEnrollment(courseId);
+  const admin = createSupabaseAdminClient();
+
+  const { data: exercise } = await admin
+    .from("exercises")
+    .select("id, lesson_id, content_json, correct_answer_json, minimum_score_to_pass")
+    .eq("id", exerciseId)
+    .single<ExerciseForCorrection>();
+
+  if (!exercise) {
+    redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=exercises`);
+  }
+
+  const { count: prevCount } = await admin
+    .from("exercise_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("employee_id", userId)
+    .eq("exercise_id", exerciseId);
+
+  const answer = readExerciseAnswer(formData, exercise);
+  const correction = correctExerciseAnswer(exercise.correct_answer_json, answer);
+  const minimumScore = Number(exercise.minimum_score_to_pass ?? 80);
+  const passed = correction.score >= minimumScore;
+
+  await admin.from("exercise_attempts").insert({
+    employee_id: userId,
+    exercise_id: exerciseId,
+    lesson_id: lessonId,
+    course_id: courseId,
+    attempt_number: (prevCount ?? 0) + 1,
+    answer_json: typeof answer === "string" ? { answer } : answer,
+    score: correction.score,
+    passed,
+    ai_feedback: passed
+      ? "Correct!"
+      : `Score: ${correction.score.toFixed(0)}%. You need at least ${minimumScore}%. Try again.`,
+    ai_analysis_json: {
+      expected_answer: correction.expectedAnswer,
+      incorrect_answers: correction.incorrectAnswers,
+      corrected_by: "local-mvp"
+    }
+  });
+
+  if (!passed) {
+    redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=exercises`);
+  }
+
+  // Check if all exercises in the lesson are now passed
+  const [{ data: allExercises }, { data: passedAttempts }] = await Promise.all([
+    admin
+      .from("exercises")
+      .select("id")
+      .eq("lesson_id", lessonId)
+      .returns<{ id: string }[]>(),
+    admin
+      .from("exercise_attempts")
+      .select("exercise_id")
+      .eq("employee_id", userId)
+      .eq("lesson_id", lessonId)
+      .eq("passed", true)
+      .returns<{ exercise_id: string }[]>()
+  ]);
+
+  const passedIds = new Set(passedAttempts?.map((a) => a.exercise_id) ?? []);
+  const allPassed = (allExercises ?? []).every((e) => passedIds.has(e.id));
+
+  if (allPassed) {
+    await markLessonExercisesCompleted(admin, userId, courseId, unitId, lessonId);
+    await updateEnrollmentProgress(userId, courseId, lessonId);
+    redirect(`/dashboard/courses/${courseId}?success=lesson-completed`);
+  }
+
+  redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=exercises`);
+}
+
 function readExerciseAnswer(formData: FormData, exercise: ExerciseForCorrection) {
+  // questions[] format: { questions: [{ id, type, ... }] }
+  const questions = readQuestionsArray(exercise.content_json);
+  if (questions.length > 0) {
+    return {
+      answers: Object.fromEntries(
+        questions.map(({ id, type }) => [
+          id,
+          type === "multiple"
+            ? formData.getAll(`answer_${exercise.id}_${id}`) as string[]
+            : readText(formData, `answer_${exercise.id}_${id}`)
+        ])
+      )
+    };
+  }
+
   const itemIds = readExerciseItemIds(exercise.content_json);
 
   if (itemIds.length === 0) {
@@ -201,6 +322,16 @@ function readExerciseAnswer(formData: FormData, exercise: ExerciseForCorrection)
       itemIds.map((itemId) => [itemId, readText(formData, `answer_${exercise.id}_${itemId}`)])
     )
   };
+}
+
+function readQuestionsArray(content: Record<string, unknown>): Array<{ id: string; type: string }> {
+  if (!Array.isArray(content.questions)) return [];
+  return content.questions.flatMap((q) => {
+    if (typeof q !== "object" || q === null || Array.isArray(q)) return [];
+    const qMap = q as Record<string, unknown>;
+    if (typeof qMap.id !== "string") return [];
+    return [{ id: qMap.id, type: typeof qMap.type === "string" ? qMap.type : "single" }];
+  });
 }
 
 function readExerciseItemIds(content: Record<string, unknown>) {

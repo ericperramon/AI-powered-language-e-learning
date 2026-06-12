@@ -16,11 +16,11 @@ type IncorrectAnswer = {
 };
 
 export function correctExerciseAnswer(correctAnswerJson: JsonMap | null, rawAnswer: ExerciseAnswer): ExerciseCorrection {
-  const multiQuestionCorrection = correctMultiQuestionAnswer(correctAnswerJson, rawAnswer);
+  const questionsMapCorrection = correctQuestionsMapAnswer(correctAnswerJson, rawAnswer);
+  if (questionsMapCorrection) return questionsMapCorrection;
 
-  if (multiQuestionCorrection) {
-    return multiQuestionCorrection;
-  }
+  const multiQuestionCorrection = correctMultiQuestionAnswer(correctAnswerJson, rawAnswer);
+  if (multiQuestionCorrection) return multiQuestionCorrection;
 
   const rawTextAnswer = typeof rawAnswer === "string" ? rawAnswer : readAnswerValue(rawAnswer.answer)[0] ?? "";
   const answer = normalizeAnswer(rawTextAnswer);
@@ -158,6 +158,79 @@ function readAnswerValue(value: unknown): string[] {
   }
 
   return [];
+}
+
+// Handles correct_answer_json as a flat map of question IDs:
+// { "q1": "Nova Solutions Ltd", "q3": ["results-driven", "ambitious"] }
+function correctQuestionsMapAnswer(
+  correctAnswerJson: JsonMap | null,
+  rawAnswer: ExerciseAnswer
+): ExerciseCorrection | null {
+  if (!correctAnswerJson || typeof rawAnswer === "string" || !isJsonMap(rawAnswer)) return null;
+
+  const submitted = rawAnswer.answers;
+  if (!isJsonMap(submitted)) return null;
+
+  // Must not be the existing { answers: [...] } array format
+  if (Array.isArray(correctAnswerJson.answers)) return null;
+
+  const entries = Object.entries(correctAnswerJson);
+  if (entries.length === 0) return null;
+
+  let correctCount = 0;
+  const incorrectAnswers: IncorrectAnswer[] = [];
+
+  for (const [questionId, correctValue] of entries) {
+    const submittedValue = submitted[questionId];
+
+    if (Array.isArray(correctValue)) {
+      const sortedCorrect = [...correctValue].map((v) => normalizeAnswer(String(v))).sort();
+      const sortedSubmitted = Array.isArray(submittedValue)
+        ? submittedValue.map((v) => normalizeAnswer(String(v))).sort()
+        : [];
+      const isCorrect = JSON.stringify(sortedCorrect) === JSON.stringify(sortedSubmitted);
+      if (isCorrect) {
+        correctCount++;
+      } else {
+        incorrectAnswers.push({
+          itemId: questionId,
+          submittedAnswer: Array.isArray(submittedValue) ? submittedValue.join(", ") : "",
+          correctAnswer: correctValue.join(", "),
+          correctText: correctValue.join(", ")
+        });
+      }
+    } else {
+      const isCorrect =
+        normalizeAnswer(String(correctValue)) ===
+        normalizeAnswer(typeof submittedValue === "string" ? submittedValue : "");
+      if (isCorrect) {
+        correctCount++;
+      } else {
+        incorrectAnswers.push({
+          itemId: questionId,
+          submittedAnswer: typeof submittedValue === "string" ? submittedValue : "",
+          correctAnswer: String(correctValue),
+          correctText: String(correctValue)
+        });
+      }
+    }
+  }
+
+  const total = entries.length;
+  const score = Math.round((correctCount / total) * 100);
+
+  return {
+    passed: correctCount === total,
+    score,
+    feedback:
+      correctCount === total
+        ? "All answers correct!"
+        : `${correctCount} of ${total} correct. Review the marked questions and try again.`,
+    expectedAnswer: entries
+      .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+      .join(" | "),
+    incorrectAnswers
+  };
 }
 
 function isJsonMap(value: unknown): value is JsonMap {

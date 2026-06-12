@@ -5,6 +5,7 @@ import {
   completeLessonVideo,
   completeSummaryLesson,
   submitLessonExercises,
+  submitSingleExercise,
   submitPracticeTask,
   submitUnitTest,
   submitUnitTestExercises
@@ -142,6 +143,15 @@ export default async function LessonPage({
   }
 
   const admin = createSupabaseAdminClient();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single<{ role: string }>();
+
+  const isPreview = profile?.role === "superadmin";
+
   const { data: enrollment } = await admin
     .from("enrollments")
     .select("id")
@@ -150,7 +160,7 @@ export default async function LessonPage({
     .in("status", ["active", "completed"])
     .single();
 
-  if (!enrollment) {
+  if (!enrollment && !isPreview) {
     redirect("/dashboard?error=course-not-enrolled");
   }
 
@@ -218,6 +228,14 @@ export default async function LessonPage({
     redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=test`);
   }
 
+  if (lesson.lesson_type === "video" && stage === "exercises") {
+    redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=video`);
+  }
+
+  if (lesson.lesson_type === "exercise" && stage === "video") {
+    redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=exercises`);
+  }
+
   const isSummaryLesson = lesson.lesson_type === "text" && Boolean(lesson.pdf_url);
   const isPracticeTaskLesson = lesson.lesson_type === "practice_task";
 
@@ -269,10 +287,14 @@ export default async function LessonPage({
         ? null
         : lesson.lesson_type === "practice_task"
           ? [{ key: "practice_task", label: "Practice Task", icon: ClipboardList }]
-          : [
-              { key: "video", label: "Video", icon: PlayCircle },
-              { key: "exercises", label: "Exercises", icon: CheckCircle2 }
-            ];
+          : lesson.lesson_type === "video"
+            ? [{ key: "video", label: "Video", icon: PlayCircle }]
+            : lesson.lesson_type === "exercise"
+              ? [{ key: "exercises", label: "Exercises", icon: CheckCircle2 }]
+              : [
+                  { key: "video", label: "Video", icon: PlayCircle },
+                  { key: "exercises", label: "Exercises", icon: CheckCircle2 }
+                ];
 
   return (
     <main className="min-h-screen w-full px-5 py-8 sm:px-8 lg:px-10">
@@ -378,6 +400,7 @@ export default async function LessonPage({
               lesson={lesson}
               progress={progress}
               unitId={unit.id}
+              videoRequired={!isPreview && lesson.lesson_type !== "exercise"}
             />
           ) : (
             <TestStep
@@ -560,9 +583,10 @@ function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Les
           <input name="courseId" type="hidden" value={courseId} />
           <input name="unitId" type="hidden" value={unitId} />
           <input name="lessonId" type="hidden" value={lesson.id} />
+          <input name="lessonType" type="hidden" value={lesson.lesson_type} />
           <Button type="submit">
             <CheckCircle2 strokeWidth={1.5} size={16} />
-            Mark video as watched and start exercises
+            {lesson.lesson_type === "video" ? "Mark video as watched and continue" : "Mark video as watched and start exercises"}
           </Button>
         </form>
       </CardContent>
@@ -605,7 +629,8 @@ function ExercisesStep({
   exercises,
   lesson,
   progress,
-  unitId
+  unitId,
+  videoRequired = true
 }: {
   attempts: ExerciseAttempt[];
   courseId: string;
@@ -613,8 +638,9 @@ function ExercisesStep({
   lesson: Lesson;
   progress: LessonProgress | null;
   unitId: string;
+  videoRequired?: boolean;
 }) {
-  if (!progress?.video_completed) {
+  if (videoRequired && !progress?.video_completed) {
     return (
       <Card>
         <CardHeader>
@@ -630,85 +656,131 @@ function ExercisesStep({
     );
   }
 
-  const latestAttemptsByExercise = new Map<string, ExerciseAttempt>();
+  // No exercises loaded yet
+  if (exercises.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Lesson exercises</h2>
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-lg border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm leading-6 text-[var(--outline)]">
+            Exercises pending. They will appear here once the prepared content is loaded.
+          </div>
+          <form action={submitLessonExercises} className="mt-4">
+            <input name="courseId" type="hidden" value={courseId} />
+            <input name="unitId" type="hidden" value={unitId} />
+            <input name="lessonId" type="hidden" value={lesson.id} />
+            <Button type="submit">
+              <CheckCircle2 strokeWidth={1.5} size={16} />
+              Mark as complete and continue
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    );
+  }
 
+  // Build latest attempt per exercise (attempts already ordered by created_at DESC)
+  const latestAttempts = new Map<string, ExerciseAttempt>();
   for (const attempt of attempts) {
-    if (!latestAttemptsByExercise.has(attempt.exercise_id)) {
-      latestAttemptsByExercise.set(attempt.exercise_id, attempt);
+    if (!latestAttempts.has(attempt.exercise_id)) {
+      latestAttempts.set(attempt.exercise_id, attempt);
     }
   }
+
+  const passedIds = new Set(
+    [...latestAttempts.entries()].filter(([, a]) => a.passed).map(([id]) => id)
+  );
+
+  const currentIdx = exercises.findIndex((e) => !passedIds.has(e.id));
+  const allPassed = currentIdx === -1;
+
+  // All passed but action hasn't redirected yet (edge case)
+  if (allPassed) {
+    return (
+      <Card>
+        <CardContent className="py-8 text-center">
+          <p className="font-semibold text-[var(--on-surface)]">All exercises completed!</p>
+          <Link
+            className="mt-4 inline-flex h-10 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
+            href={`/dashboard/courses/${courseId}`}
+          >
+            Back to course
+          </Link>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const currentExercise = exercises[currentIdx];
+  const currentAttempt = latestAttempts.get(currentExercise.id) ?? null;
+  const isFillInBlanks =
+    Boolean(
+      getExerciseBlanks(currentExercise.content_json) ??
+        getExerciseBlanksFromItems(currentExercise.content_json) ??
+        getExerciseTextBlanks(currentExercise.content_json)
+    ) || getExerciseQuestions(currentExercise.content_json).length > 0;
 
   return (
     <Card>
       <CardHeader>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Lesson exercises</h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
-              Complete these exercises to unlock the next available lesson.
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
+              Exercise {currentIdx + 1} of {exercises.length} · {currentExercise.exercise_type}
             </p>
+            <h2 className="font-display mt-1 text-2xl font-semibold text-[var(--on-surface)]">
+              {currentExercise.title}
+            </h2>
           </div>
-          <Link
-            className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm font-semibold text-[var(--on-surface-variant)] hover:bg-[var(--surface-container-low)]"
-            href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=video`}
-          >
-            <PlayCircle strokeWidth={1.5} size={15} />
-            Video lesson
-          </Link>
+          {/* Progress dots */}
+          <div className="flex shrink-0 items-center gap-1.5 pt-1">
+            {exercises.map((ex, i) => (
+              <div
+                key={ex.id}
+                className={`h-2.5 w-2.5 rounded-full transition-colors ${
+                  passedIds.has(ex.id)
+                    ? "bg-emerald-500"
+                    : i === currentIdx
+                      ? "bg-[var(--primary)]"
+                      : "border border-[var(--outline-variant)]"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <form action={submitLessonExercises} className="space-y-5">
+        {/* Failed attempt feedback */}
+        {currentAttempt && !currentAttempt.passed && (
+          <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <p className="font-medium">{currentAttempt.ai_feedback ?? "Incorrect answer. Try again."}</p>
+          </div>
+        )}
+
+        <form action={submitSingleExercise} className="space-y-5">
           <input name="courseId" type="hidden" value={courseId} />
           <input name="unitId" type="hidden" value={unitId} />
           <input name="lessonId" type="hidden" value={lesson.id} />
+          <input name="exerciseId" type="hidden" value={currentExercise.id} />
 
-          <div className="space-y-3">
-            {exercises.map((exercise) => {
-              const isFillInBlanks = Boolean(
-                getExerciseBlanks(exercise.content_json) ??
-                  getExerciseBlanksFromItems(exercise.content_json) ??
-                  getExerciseTextBlanks(exercise.content_json)
-              );
+          {!isFillInBlanks && (
+            <p className="text-sm leading-6 text-[var(--on-surface-variant)]">
+              {formatExerciseContent(currentExercise.content_json)}
+            </p>
+          )}
 
-              return (
-                <div className="rounded-lg border border-[var(--outline-variant)] p-4" key={exercise.id}>
-                  <p className="text-sm font-medium text-[var(--outline)]">
-                    Exercise {exercise.sort_order} · {exercise.exercise_type}
-                  </p>
-                  <h3 className="mt-1 font-semibold text-[var(--on-surface)]">{exercise.title}</h3>
-                  {!isFillInBlanks && (
-                    <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">
-                      {formatExerciseContent(exercise.content_json)}
-                    </p>
-                  )}
-                  <ExerciseAnswerControl
-                    exercise={exercise}
-                    previousAttempt={latestAttemptsByExercise.get(exercise.id)}
-                  />
-                </div>
-              );
-            })}
-            {exercises.length === 0 ? (
-              <div className="rounded-lg border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm leading-6 text-[var(--outline)]">
-                Exercises pending. They will appear here once the prepared content is loaded.
-              </div>
-            ) : null}
-          </div>
+          <ExerciseAnswerControl
+            exercise={currentExercise}
+            previousAttempt={currentAttempt ?? undefined}
+          />
 
           <Button type="submit">
             <CheckCircle2 strokeWidth={1.5} size={16} />
-            {exercises.length === 0 ? "Complete exercises and continue" : "Check answers and continue"}
+            {currentAttempt && !currentAttempt.passed ? "Try again" : "Submit answer"}
           </Button>
         </form>
-        {progress?.is_completed ? (
-          <Link
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
-            href={`/dashboard/courses/${courseId}`}
-          >
-            Continue to next lesson
-          </Link>
-        ) : null}
       </CardContent>
     </Card>
   );
@@ -721,6 +793,18 @@ function ExerciseAnswerControl({
   exercise: Exercise;
   previousAttempt?: ExerciseAttempt;
 }) {
+  const questions = getExerciseQuestions(exercise.content_json);
+
+  if (questions.length > 0) {
+    return (
+      <QuestionsExercise
+        exercise={exercise}
+        questions={questions}
+        previousAttempt={previousAttempt}
+      />
+    );
+  }
+
   const blanksData = getExerciseBlanks(exercise.content_json) ?? getExerciseBlanksFromItems(exercise.content_json);
   const textBlanksData = !blanksData ? getExerciseTextBlanks(exercise.content_json) : null;
   const items = getExerciseItems(exercise.content_json);
@@ -965,7 +1049,7 @@ function TestStep({
                   <div className="rounded-lg border border-[var(--outline-variant)] p-4" key={exercise.id}>
                     <p className="text-sm font-medium text-[var(--outline)]">Question {exercise.sort_order}</p>
                     <h3 className="mt-1 font-semibold text-[var(--on-surface)]">{exercise.title}</h3>
-                    {!isFillInBlanks && (
+                    {!isFillInBlanks && getExerciseQuestions(exercise.content_json).length === 0 && (
                       <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">
                         {formatExerciseContent(exercise.content_json)}
                       </p>
@@ -997,6 +1081,222 @@ function TestStep({
         ) : null}
       </CardContent>
     </Card>
+  );
+}
+
+// ── Questions format helpers ───────────────────────────────────────────────
+
+type QuestionItem = {
+  id: string;
+  text: string;
+  type: "single" | "multiple";
+  options: string[];
+};
+
+function getExerciseQuestions(content: Record<string, unknown>): QuestionItem[] {
+  if (!Array.isArray(content.questions)) return [];
+  return content.questions.flatMap((q) => {
+    if (typeof q !== "object" || q === null || Array.isArray(q)) return [];
+    const qMap = q as Record<string, unknown>;
+    if (typeof qMap.id !== "string" || typeof qMap.text !== "string") return [];
+    const options = Array.isArray(qMap.options)
+      ? qMap.options.flatMap((o) => (typeof o === "string" ? [o] : []))
+      : [];
+    return [
+      {
+        id: qMap.id,
+        text: qMap.text,
+        type: qMap.type === "multiple" ? "multiple" : "single",
+        options
+      }
+    ];
+  });
+}
+
+function readPreviousQuestionsAnswers(
+  attempt?: ExerciseAttempt
+): Record<string, string | string[]> {
+  if (!attempt) return {};
+  const answers = attempt.answer_json.answers;
+  if (typeof answers !== "object" || answers === null || Array.isArray(answers)) return {};
+  const map = answers as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(map).map(([k, v]) => [
+      k,
+      Array.isArray(v)
+        ? (v as unknown[]).map(String)
+        : typeof v === "string"
+          ? v
+          : ""
+    ])
+  );
+}
+
+function QuestionsExercise({
+  exercise,
+  questions,
+  previousAttempt
+}: {
+  exercise: Exercise;
+  questions: QuestionItem[];
+  previousAttempt?: ExerciseAttempt;
+}) {
+  const instructions =
+    typeof exercise.content_json.instructions === "string"
+      ? exercise.content_json.instructions
+      : null;
+  const modelText =
+    typeof exercise.content_json.model_text === "object" &&
+    exercise.content_json.model_text !== null &&
+    !Array.isArray(exercise.content_json.model_text)
+      ? (exercise.content_json.model_text as Record<string, unknown>)
+      : null;
+
+  const previousAnswers = readPreviousQuestionsAnswers(previousAttempt);
+  const incorrectIds = new Set(
+    getIncorrectAnswers(previousAttempt).map((a) => a.itemId)
+  );
+
+  return (
+    <div className="space-y-5">
+      {instructions && (
+        <p className="text-sm font-medium text-[var(--on-surface-variant)]">{instructions}</p>
+      )}
+
+      {modelText && <ModelTextBlock modelText={modelText} />}
+
+      <div className="space-y-4">
+        {questions.map((q) => {
+          const prevAnswer = previousAnswers[q.id];
+          const isWrong = incorrectIds.has(q.id);
+
+          return (
+            <fieldset
+              key={q.id}
+              className={`space-y-2 rounded-lg border p-4 ${
+                isWrong
+                  ? "border-amber-300 bg-amber-50/50"
+                  : "border-[var(--outline-variant)] bg-[var(--surface-container-low)]"
+              }`}
+            >
+              <legend className="text-sm font-semibold leading-6 text-[var(--on-surface)]">
+                {q.text}
+                {q.type === "multiple" && (
+                  <span className="ml-2 text-xs font-normal text-[var(--outline)]">
+                    (Select all that apply)
+                  </span>
+                )}
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {q.options.map((option) => {
+                  const isChecked = Array.isArray(prevAnswer)
+                    ? prevAnswer.includes(option)
+                    : prevAnswer === option;
+                  return (
+                    <label
+                      key={option}
+                      className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface-variant)] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-[var(--primary-fixed)]"
+                    >
+                      <input
+                        className="h-4 w-4 accent-[var(--primary)]"
+                        defaultChecked={isChecked}
+                        name={`answer_${exercise.id}_${q.id}`}
+                        type={q.type === "multiple" ? "checkbox" : "radio"}
+                        value={option}
+                      />
+                      <span>{option}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+const MODEL_TEXT_KNOWN_KEYS = new Set([
+  "profile",
+  "education",
+  "current_employer",
+  "responsibilities",
+  "previous_employer",
+]);
+
+function ModelTextBlock({ modelText }: { modelText: Record<string, unknown> }) {
+  const profile = typeof modelText.profile === "string" ? modelText.profile : null;
+  const education = typeof modelText.education === "string" ? modelText.education : null;
+  const currentEmployer =
+    typeof modelText.current_employer === "string" ? modelText.current_employer : null;
+  const responsibilities = Array.isArray(modelText.responsibilities)
+    ? (modelText.responsibilities as unknown[]).flatMap((r) =>
+        typeof r === "string" ? [r] : []
+      )
+    : [];
+  const previousEmployer =
+    typeof modelText.previous_employer === "string" ? modelText.previous_employer : null;
+
+  const extraEntries = Object.entries(modelText).filter(
+    ([k]) => !MODEL_TEXT_KNOWN_KEYS.has(k)
+  );
+
+  return (
+    <div className="space-y-3 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm leading-6">
+      {profile && <p className="italic text-[var(--on-surface)]">{profile}</p>}
+      {education && (
+        <div>
+          <p className="font-semibold text-[var(--on-surface)]">Education</p>
+          <p className="text-[var(--on-surface-variant)]">{education}</p>
+        </div>
+      )}
+      {currentEmployer && (
+        <div>
+          <p className="font-semibold text-[var(--on-surface)]">Current position</p>
+          <p className="text-[var(--on-surface-variant)]">{currentEmployer}</p>
+          {responsibilities.length > 0 && (
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[var(--on-surface-variant)]">
+              {responsibilities.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {previousEmployer && (
+        <div>
+          <p className="font-semibold text-[var(--on-surface)]">Previous position</p>
+          <p className="text-[var(--on-surface-variant)]">{previousEmployer}</p>
+        </div>
+      )}
+      {extraEntries.map(([key, value]) => {
+        const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+        if (typeof value === "string") {
+          return (
+            <div key={key}>
+              <p className="font-semibold text-[var(--on-surface)]">{label}</p>
+              <p className="text-[var(--on-surface-variant)]">{value}</p>
+            </div>
+          );
+        }
+        if (Array.isArray(value)) {
+          const items = value.flatMap((r) => (typeof r === "string" ? [r] : []));
+          if (items.length === 0) return null;
+          return (
+            <div key={key}>
+              <p className="font-semibold text-[var(--on-surface)]">{label}</p>
+              <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[var(--on-surface-variant)]">
+                {items.map((r) => (
+                  <li key={r}>{r}</li>
+                ))}
+              </ul>
+            </div>
+          );
+        }
+        return null;
+      })}
+    </div>
   );
 }
 

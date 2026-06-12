@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AiAssistant } from "@/components/ai-assistant";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
@@ -17,15 +18,30 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .from("profiles")
     .select("full_name, email, role")
     .eq("id", user.id)
-    .single<{ full_name: string | null; email: string | null; role: "admin" | "alumno" }>();
+    .single<{ full_name: string | null; email: string | null; role: "admin" | "alumno" | "superadmin" }>();
+
+  const isSuperAdmin = profile?.role === "superadmin";
+  const isAdmin = profile?.role === "admin";
+
+  let allCourses: Array<{ id: string; title: string }> = [];
+  if (isSuperAdmin) {
+    const admin = createSupabaseAdminClient();
+    const { data } = await admin
+      .from("courses")
+      .select("id, title")
+      .eq("is_active", true)
+      .order("title")
+      .returns<Array<{ id: string; title: string }>>();
+    allCourses = data ?? [];
+  }
 
   return (
     <div className="flex min-h-screen bg-[var(--background)]">
-      <DashboardSidebar profile={profile} />
+      <DashboardSidebar profile={profile} courses={isSuperAdmin ? allCourses : []} />
       <div className="flex min-w-0 flex-1 flex-col pt-14 lg:pt-0">
         {children}
       </div>
-      <AiAssistant />
+      {!isAdmin && <AiAssistant />}
     </div>
   );
 }

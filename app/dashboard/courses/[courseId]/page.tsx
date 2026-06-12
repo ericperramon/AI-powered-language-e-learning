@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
-  BookOpen,
   CheckCircle2,
   ChevronRight,
   ClipboardList,
@@ -11,11 +10,12 @@ import {
   PlayCircle,
   Trophy
 } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardHeader } from "@/components/ui/card";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AssistantContextSetter } from "@/components/assistant-context-setter";
 import type { AssistantCourseContext } from "@/lib/assistant/system-prompt";
+import { UnitRow } from "./unit-row";
 
 type Course = {
   id: string;
@@ -44,6 +44,7 @@ type Lesson = {
   pdf_url: string | null;
   requires_exam: boolean;
   minimum_score_to_pass: number | string | null;
+  exercises: Array<{ count: number }>;
 };
 
 type PracticeTaskSubmission = {
@@ -89,6 +90,15 @@ export default async function CoursePage({
   }
 
   const admin = createSupabaseAdminClient();
+
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single<{ role: string }>();
+
+  const isPreview = profile?.role === "superadmin";
+
   const { data: enrollment } = await admin
     .from("enrollments")
     .select("progress_percentage, status")
@@ -96,7 +106,7 @@ export default async function CoursePage({
     .eq("course_id", courseId)
     .single<Enrollment>();
 
-  if (!enrollment) {
+  if (!enrollment && !isPreview) {
     redirect("/dashboard?error=course-not-enrolled");
   }
 
@@ -106,6 +116,7 @@ export default async function CoursePage({
     { data: lessonProgressData },
     { data: unitProgressData },
     { data: practiceSubmissionsData },
+    { data: passedAttemptsData },
   ] = await Promise.all([
     admin
       .from("courses")
@@ -115,7 +126,7 @@ export default async function CoursePage({
     admin
       .from("units")
       .select(
-        "id, title, description, sort_order, lessons(id, title, description, lesson_type, sort_order, video_url, pdf_url, requires_exam, minimum_score_to_pass)"
+        "id, title, description, sort_order, lessons(id, title, description, lesson_type, sort_order, video_url, pdf_url, requires_exam, minimum_score_to_pass, exercises(count))"
       )
       .eq("course_id", courseId)
       .order("sort_order")
@@ -139,6 +150,13 @@ export default async function CoursePage({
       .eq("employee_id", user.id)
       .eq("course_id", courseId)
       .returns<PracticeTaskSubmission[]>(),
+    admin
+      .from("exercise_attempts")
+      .select("lesson_id, exercise_id")
+      .eq("employee_id", user.id)
+      .eq("course_id", courseId)
+      .eq("passed", true)
+      .returns<Array<{ lesson_id: string; exercise_id: string }>>(),
   ]);
 
   if (!course) {
@@ -149,7 +167,15 @@ export default async function CoursePage({
   const lessonProgress = new Map((lessonProgressData ?? []).map((p) => [p.lesson_id, p]));
   const unitProgress = new Map((unitProgressData ?? []).map((p) => [p.unit_id, p]));
   const practiceSubmissions = new Map((practiceSubmissionsData ?? []).map((s) => [s.lesson_id, s.status]));
-  const progress = Math.min(Math.max(Number(enrollment.progress_percentage), 0), 100);
+  const progress = enrollment ? Math.min(Math.max(Number(enrollment.progress_percentage), 0), 100) : 0;
+
+  const passedExercisesByLesson = new Map<string, number>();
+  for (const attempt of passedAttemptsData ?? []) {
+    passedExercisesByLesson.set(
+      attempt.lesson_id,
+      (passedExercisesByLesson.get(attempt.lesson_id) ?? 0) + 1
+    );
+  }
 
   const assistantContext: AssistantCourseContext = {
     course: { title: course.title, target_language: course.target_language, level: course.level },
@@ -234,121 +260,100 @@ export default async function CoursePage({
         ) : null}
 
         {/* Units */}
-        <div className="space-y-5">
+        <div className="space-y-3">
           {units.map((unit, unitIndex) => {
             const previousUnit = units[unitIndex - 1];
             const unitIsUnlocked =
-              unitIndex === 0 || Boolean(previousUnit && unitProgress.get(previousUnit.id)?.is_completed);
+              isPreview ||
+              unitIndex === 0 ||
+              Boolean(previousUnit && unitProgress.get(previousUnit.id)?.is_completed);
             const examLesson = unit.lessons.find((l) => l.lesson_type === "exam" || l.requires_exam);
             const orderedLessons = unit.lessons.filter((l) => l.id !== examLesson?.id);
-            const lessonsCompleted = orderedLessons.every((l) => lessonProgress.get(l.id)?.is_completed);
+            const lessonsCompleted = isPreview || orderedLessons.every((l) => lessonProgress.get(l.id)?.is_completed);
             const unitCompleted = Boolean(unitProgress.get(unit.id)?.is_completed);
-            const testUnlocked = unitIsUnlocked && orderedLessons.length > 0 && lessonsCompleted;
+            const testUnlocked = isPreview || (unitIsUnlocked && orderedLessons.length > 0 && lessonsCompleted);
             const completedCount = orderedLessons.filter((l) => lessonProgress.get(l.id)?.is_completed).length;
+            const isFirstActiveUnit = unitIsUnlocked && !unitCompleted && units.slice(0, unitIndex).every((u) => Boolean(unitProgress.get(u.id)?.is_completed));
 
             return (
-              <Card key={unit.id} className={!unitIsUnlocked ? "opacity-60" : ""}>
-                <CardHeader>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
+              <UnitRow
+                key={unit.id}
+                unit={unit}
+                locked={!unitIsUnlocked}
+                completed={unitCompleted}
+                completedCount={completedCount}
+                total={orderedLessons.length}
+                defaultOpen={isFirstActiveUnit || (unitIndex === 0 && !unitCompleted)}
+              >
+                <div className="flex flex-col gap-2">
+                  {orderedLessons.map((lesson, lessonIndex) => {
+                    const previousLesson = orderedLessons[lessonIndex - 1];
+                    const previousCompleted =
+                      isPreview ||
+                      lessonIndex === 0 ||
+                      Boolean(previousLesson && lessonProgress.get(previousLesson.id)?.is_completed);
+                    const lessonUnlocked = unitIsUnlocked && previousCompleted;
+                    const lProgress = lessonProgress.get(lesson.id);
+
+                    return (
+                      <LessonCard
+                        courseId={course.id}
+                        key={lesson.id}
+                        lesson={lesson}
+                        locked={!lessonUnlocked}
+                        progress={lProgress}
+                        practiceStatus={practiceSubmissions.get(lesson.id)}
+                        passedExerciseCount={passedExercisesByLesson.get(lesson.id) ?? 0}
+                      />
+                    );
+                  })}
+                </div>
+
+                {/* Final Exam */}
+                {examLesson && (
+                  <div
+                    className={`mt-2 flex items-center gap-4 rounded-2xl border px-4 py-3.5 ${
+                      unitCompleted
+                        ? "border-emerald-200 bg-emerald-50/30"
+                        : testUnlocked
+                          ? "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]"
+                          : "border-[var(--outline-variant)] bg-[var(--surface-container-low)] opacity-75"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
+                        unitCompleted
+                          ? "bg-emerald-100 text-emerald-600"
+                          : testUnlocked
+                            ? "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]"
+                            : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"
+                      }`}
+                    >
+                      <Trophy strokeWidth={1.5} size={17} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-[var(--outline)]">Final Exam</p>
+                      <h3 className="font-bold leading-tight text-[var(--on-surface)]">{examLesson.title}</h3>
+                    </div>
+                    {testUnlocked || unitCompleted ? (
+                      <Link
+                        className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition-colors ${
                           unitCompleted
-                            ? "bg-emerald-50 text-emerald-600"
-                            : unitIsUnlocked
-                              ? "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]"
-                              : "bg-[var(--surface-container)] text-[var(--outline)]"
+                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                            : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)] hover:bg-[var(--primary-fixed-dim)]"
                         }`}
+                        href={`/dashboard/courses/${course.id}/lessons/${examLesson.id}?stage=test`}
                       >
-                        {unitCompleted ? (
-                          <CheckCircle2 size={16} strokeWidth={2} />
-                        ) : !unitIsUnlocked ? (
-                          <Lock size={15} strokeWidth={1.5} />
-                        ) : (
-                          unit.sort_order
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
-                          Unit {unit.sort_order}
-                        </p>
-                        <h2 className="font-display text-xl font-semibold text-[var(--on-surface)]">{unit.title}</h2>
-                        {unit.description && (
-                          <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--on-surface-variant)]">
-                            {unit.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                    <StatusBadge locked={!unitIsUnlocked} completed={unitCompleted} total={orderedLessons.length} done={completedCount} />
+                        {unitCompleted ? "Review exam" : "Start exam"}
+                      </Link>
+                    ) : (
+                      <span className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-container)] px-4 text-xs font-semibold text-[var(--outline)]">
+                        Complete the previous lesson
+                      </span>
+                    )}
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {orderedLessons.map((lesson, lessonIndex) => {
-                      const previousLesson = orderedLessons[lessonIndex - 1];
-                      const previousCompleted =
-                        lessonIndex === 0 ||
-                        Boolean(previousLesson && lessonProgress.get(previousLesson.id)?.is_completed);
-                      const lessonUnlocked = unitIsUnlocked && previousCompleted;
-                      const lProgress = lessonProgress.get(lesson.id);
-
-                      return (
-                        <LessonCard
-                          courseId={course.id}
-                          key={lesson.id}
-                          lesson={lesson}
-                          locked={!lessonUnlocked}
-                          progress={lProgress}
-                          practiceStatus={practiceSubmissions.get(lesson.id)}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Unit test */}
-                  <div className="mt-4 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                            unitCompleted
-                              ? "bg-emerald-50 text-emerald-600"
-                              : testUnlocked
-                                ? "bg-[var(--primary)] text-white"
-                                : "bg-[var(--surface-container-lowest)] text-[var(--on-surface-variant)]"
-                          }`}
-                        >
-                          <Trophy strokeWidth={1.5} size={17} />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-[var(--on-surface)]">End-of-unit test</h3>
-                          <p className="mt-0.5 text-sm leading-6 text-[var(--on-surface-variant)]">
-                            Complete all lessons before taking this test. A score of 80% is required to unlock the next unit.
-                          </p>
-                        </div>
-                      </div>
-                      {examLesson && (testUnlocked || unitCompleted) ? (
-                        <Link
-                          className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold transition-colors ${
-                            unitCompleted
-                              ? "border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
-                              : "bg-[var(--primary)] text-[var(--on-primary)] hover:bg-[var(--primary-container)]"
-                          }`}
-                          href={`/dashboard/courses/${course.id}/lessons/${examLesson.id}?stage=test`}
-                        >
-                          {unitCompleted ? "Review test" : "Start test"}
-                        </Link>
-                      ) : (
-                        <span className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-4 text-sm font-semibold text-[var(--outline)]">
-                          <Lock strokeWidth={1.5} size={15} />
-                          {examLesson ? "Locked" : "Content pending"}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                )}
+              </UnitRow>
             );
           })}
 
@@ -357,8 +362,7 @@ export default async function CoursePage({
               <CardHeader>
                 <h2 className="text-lg font-semibold text-[var(--on-surface)]">Content pending</h2>
                 <p className="text-sm leading-6 text-[var(--on-surface-variant)]">
-                  This course does not have units or lessons loaded in Supabase yet. Once the content is ready, it can
-                  follow this flow: video, exercises, PDF summary and graded test.
+                  This course does not have units or lessons loaded yet. Once ready, it will follow this flow: video, exercises, PDF summary and graded test.
                 </p>
               </CardHeader>
             </Card>
@@ -419,23 +423,26 @@ function LessonCard({
   locked,
   progress,
   practiceStatus,
+  passedExerciseCount,
 }: {
   courseId: string;
   lesson: Lesson;
   locked: boolean;
   progress?: LessonProgress;
   practiceStatus?: "pending" | "reviewed" | "revision_needed";
+  passedExerciseCount: number;
 }) {
   const completed = Boolean(progress?.is_completed);
   const isSummary = lesson.lesson_type === "text" && lesson.pdf_url;
   const isPracticeTask = lesson.lesson_type === "practice_task";
+  const totalExercises = lesson.exercises?.[0]?.count ?? 0;
 
   function getIcon() {
-    if (completed) return <CheckCircle2 strokeWidth={1.5} size={16} />;
-    if (locked) return <Lock strokeWidth={1.5} size={15} />;
-    if (isPracticeTask) return <ClipboardList strokeWidth={1.5} size={16} />;
-    if (isSummary) return <FileText strokeWidth={1.5} size={16} />;
-    return <PlayCircle strokeWidth={1.5} size={16} />;
+    if (completed) return <CheckCircle2 strokeWidth={1.5} size={17} />;
+    if (locked) return <Lock strokeWidth={1.5} size={16} />;
+    if (isPracticeTask) return <ClipboardList strokeWidth={1.5} size={17} />;
+    if (isSummary) return <FileText strokeWidth={1.5} size={17} />;
+    return <PlayCircle strokeWidth={1.5} size={17} />;
   }
 
   function getHref() {
@@ -450,76 +457,76 @@ function LessonCard({
       return "Submit Task";
     }
     if (completed) return "Review";
-    if (progress?.video_completed) return "Continue";
+    if (progress?.video_completed || passedExerciseCount > 0) return "Continue";
     return "Start";
   }
 
-  function getPracticeStatusLabel() {
-    if (practiceStatus === "pending") return "· Pending review";
-    if (practiceStatus === "reviewed") return "· Reviewed ✓";
-    if (practiceStatus === "revision_needed") return "· Revision needed";
-    return null;
+  function getPracticeStatusSuffix() {
+    if (practiceStatus === "pending") return " · Pending review";
+    if (practiceStatus === "reviewed") return " · Reviewed ✓";
+    if (practiceStatus === "revision_needed") return " · Revision needed";
+    return "";
   }
 
+  const iconBg = locked
+    ? "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"
+    : completed && !isPracticeTask
+      ? "bg-emerald-100 text-emerald-600"
+      : isPracticeTask && completed
+        ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)]"
+        : isPracticeTask
+          ? "bg-[var(--secondary-container)] text-[var(--secondary)]"
+          : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]";
+
+  const rowBg = locked
+    ? "border-[var(--outline-variant)] bg-[var(--surface-container-low)]"
+    : completed && !isPracticeTask
+      ? "border-emerald-200 bg-emerald-50/30"
+      : isPracticeTask && completed
+        ? "border-[var(--secondary-fixed-dim)] bg-[var(--secondary-fixed)]"
+        : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]";
+
   return (
-    <div
-      className={`flex flex-col justify-between gap-4 rounded-xl border p-4 transition-colors ${
-        locked
-          ? "border-[var(--outline-variant)] bg-[var(--surface-container-low)] opacity-70"
-          : completed && !isPracticeTask
-            ? "border-emerald-200 bg-emerald-50/40"
-            : isPracticeTask && completed
-              ? "border-[var(--secondary-fixed-dim)] bg-[var(--secondary-fixed)]"
-              : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] hover:border-[var(--primary-fixed-dim)]"
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <div
-          className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-            completed && !isPracticeTask
-              ? "bg-emerald-100 text-emerald-600"
-              : isPracticeTask && completed
-                ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)]"
-                : locked
-                  ? "bg-[var(--surface-container)] text-[var(--outline)]"
-                  : isPracticeTask
-                    ? "bg-[var(--secondary-container)] text-[var(--secondary)]"
-                    : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]"
-          }`}
-        >
-          {getIcon()}
-        </div>
-        <div>
-          <p className="text-xs font-medium text-[var(--outline)]">
-            Lesson {lesson.sort_order}
-            {isPracticeTask && practiceStatus && (
-              <span className={`ml-1 ${practiceStatus === "reviewed" ? "text-[var(--primary)]" : practiceStatus === "revision_needed" ? "text-orange-600" : "text-amber-600"}`}>
-                {getPracticeStatusLabel()}
-              </span>
-            )}
-          </p>
-          <h3 className="font-semibold text-[var(--on-surface)]">{lesson.title}</h3>
-          {lesson.description && (
-            <p className="mt-0.5 text-sm leading-5 text-[var(--on-surface-variant)]">{lesson.description}</p>
-          )}
-        </div>
+    <div className={`flex items-center gap-4 rounded-2xl border px-4 py-3.5 ${rowBg} ${locked ? "opacity-75" : ""}`}>
+      {/* Icon */}
+      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+        {getIcon()}
       </div>
+
+      {/* Label + title */}
+      <div className="min-w-0 flex-1">
+        <p className="text-xs text-[var(--outline)]">
+          Lesson {lesson.sort_order}
+          {isPracticeTask && practiceStatus && (
+            <span className={`${practiceStatus === "reviewed" ? "text-[var(--primary)]" : practiceStatus === "revision_needed" ? "text-orange-600" : "text-amber-600"}`}>
+              {getPracticeStatusSuffix()}
+            </span>
+          )}
+        </p>
+        <h3 className="font-bold text-[var(--on-surface)] leading-tight">{lesson.title}</h3>
+        {totalExercises > 0 && !isPracticeTask && (
+          <p className="mt-0.5 text-xs text-[var(--on-surface-variant)]">
+            {passedExerciseCount}/{totalExercises} exercises
+          </p>
+        )}
+      </div>
+
+      {/* Action */}
       {locked ? (
-        <span className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-4 text-xs font-semibold text-[var(--outline)]">
+        <span className="inline-flex h-9 shrink-0 items-center justify-center rounded-full bg-[var(--surface-container)] px-4 text-xs font-semibold text-[var(--outline)]">
           Complete the previous lesson
         </span>
       ) : (
         <Link
-          className={`inline-flex h-9 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold transition-colors ${
+          className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition-colors ${
             completed && !isPracticeTask
-              ? "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
+              ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
               : isPracticeTask && completed
-                ? "border-[var(--secondary-fixed-dim)] bg-[var(--surface-container-lowest)] text-[var(--secondary)] hover:bg-[var(--secondary-fixed)]"
-                : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] text-[var(--on-surface)] hover:bg-[var(--primary-fixed)] hover:border-[var(--primary-fixed-dim)]"
+                ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)] hover:opacity-80"
+                : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)] hover:bg-[var(--primary-fixed-dim)]"
           }`}
           href={getHref()}
         >
-          {isPracticeTask ? <ClipboardList size={14} /> : isSummary ? <FileText size={14} /> : <BookOpen size={14} />}
           {getButtonLabel()}
         </Link>
       )}
