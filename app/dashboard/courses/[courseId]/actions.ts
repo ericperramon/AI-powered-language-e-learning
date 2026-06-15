@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { correctExerciseAnswer } from "@/lib/exercises/evaluation";
+import { correctWithAI } from "@/lib/exercises/ai-correction";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -17,6 +18,7 @@ type ExerciseForCorrection = {
   content_json: Record<string, unknown>;
   correct_answer_json: Record<string, unknown> | null;
   minimum_score_to_pass: number | string | null;
+  is_ai_corrected: boolean;
 };
 
 async function getActiveEnrollment(courseId: string): Promise<{ userId: string; enrollment: Enrollment }> {
@@ -225,7 +227,7 @@ export async function submitSingleExercise(formData: FormData) {
 
   const { data: exercise } = await admin
     .from("exercises")
-    .select("id, lesson_id, content_json, correct_answer_json, minimum_score_to_pass")
+    .select("id, lesson_id, content_json, correct_answer_json, minimum_score_to_pass, is_ai_corrected")
     .eq("id", exerciseId)
     .single<ExerciseForCorrection>();
 
@@ -240,8 +242,20 @@ export async function submitSingleExercise(formData: FormData) {
     .eq("exercise_id", exerciseId);
 
   const answer = readExerciseAnswer(formData, exercise);
-  const correction = correctExerciseAnswer(exercise.correct_answer_json, answer);
   const minimumScore = Number(exercise.minimum_score_to_pass ?? 80);
+  const aiCorrectionPrompt = typeof exercise.content_json.ai_correction_prompt === "string"
+    ? exercise.content_json.ai_correction_prompt
+    : null;
+
+  const correction =
+    exercise.is_ai_corrected && aiCorrectionPrompt && process.env.ANTHROPIC_API_KEY
+      ? await correctWithAI(
+          aiCorrectionPrompt,
+          typeof answer === "string" ? answer : JSON.stringify(answer),
+          minimumScore
+        )
+      : correctExerciseAnswer(exercise.correct_answer_json, answer);
+
   const passed = correction.score >= minimumScore;
 
   await admin.from("exercise_attempts").insert({
@@ -253,13 +267,15 @@ export async function submitSingleExercise(formData: FormData) {
     answer_json: typeof answer === "string" ? { answer } : answer,
     score: correction.score,
     passed,
-    ai_feedback: passed
-      ? "Correct!"
-      : `Score: ${correction.score.toFixed(0)}%. You need at least ${minimumScore}%. Try again.`,
+    ai_feedback: exercise.is_ai_corrected && aiCorrectionPrompt
+      ? correction.feedback
+      : passed
+        ? "Correct!"
+        : `Score: ${correction.score.toFixed(0)}%. You need at least ${minimumScore}%. Try again.`,
     ai_analysis_json: {
       expected_answer: correction.expectedAnswer,
       incorrect_answers: correction.incorrectAnswers,
-      corrected_by: "local-mvp"
+      corrected_by: exercise.is_ai_corrected && aiCorrectionPrompt ? "claude-ai" : "local-mvp"
     }
   });
 
@@ -335,6 +351,24 @@ function readQuestionsArray(content: Record<string, unknown>): Array<{ id: strin
 }
 
 function readExerciseItemIds(content: Record<string, unknown>) {
+  if (Array.isArray(content.pairs)) {
+    const pairIds = content.pairs.flatMap((p) => {
+      if (typeof p !== "object" || p === null || Array.isArray(p)) return [];
+      const pm = p as Record<string, unknown>;
+      return typeof pm.id === "number" || typeof pm.id === "string" ? [String(pm.id)] : [];
+    });
+    if (pairIds.length > 0) return pairIds;
+  }
+
+  if (Array.isArray(content.sentences)) {
+    const sentenceIds = content.sentences.flatMap((s) => {
+      if (typeof s !== "object" || s === null || Array.isArray(s)) return [];
+      const sm = s as Record<string, unknown>;
+      return typeof sm.id === "string" ? [sm.id] : [];
+    });
+    if (sentenceIds.length > 0) return sentenceIds;
+  }
+
   const source = Array.isArray(content.items) ? content.items : Array.isArray(content.blanks) ? content.blanks : [];
 
   const fromSource = source.flatMap((item) => {

@@ -299,13 +299,10 @@ export default async function LessonPage({
     <main className="min-h-screen w-full px-5 py-8 sm:px-8 lg:px-10">
       <AssistantContextSetter courseContext={assistantContext} />
 
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-5xl">
         {/* Breadcrumb */}
         <nav className="mb-6 flex flex-wrap items-center gap-1.5 text-sm text-[var(--on-surface-variant)]">
-          <Link
-            href="/dashboard"
-            className="font-medium transition-colors hover:text-[var(--on-surface)]"
-          >
+          <Link href="/dashboard" className="font-medium transition-colors hover:text-[var(--on-surface)]">
             Dashboard
           </Link>
           <ChevronRight size={14} className="text-[var(--outline)]" />
@@ -320,22 +317,22 @@ export default async function LessonPage({
           <span className="text-[var(--on-surface)]">Unit {unit.sort_order}</span>
         </nav>
 
-        {/* Lesson header */}
-        <div className="mb-6 rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] p-5 shadow-[0_4px_20px_rgba(0,0,0,0.06)]">
+        {/* Lesson header — flat, no box */}
+        <div className="mb-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
             {unit.title} · Lesson {lesson.sort_order}
           </p>
-          <h1 className="font-display mt-1.5 text-2xl font-bold text-[var(--on-surface)] sm:text-3xl">
+          <h1 className="font-display mt-2 text-2xl font-bold text-[var(--on-surface)] sm:text-3xl">
             {lesson.title}
           </h1>
           {lesson.description && (
             <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">{lesson.description}</p>
           )}
 
-          {/* Stage indicator */}
+          {/* Stage tabs — underline style */}
           {stageSteps && (
-            <div className="mt-4 flex items-center gap-2">
-              {stageSteps.map((step, i) => {
+            <div className="mt-6 flex border-b border-[var(--outline-variant)]">
+              {stageSteps.map((step) => {
                 const isActive = stage === step.key;
                 const isDone =
                   step.key === "video"
@@ -344,22 +341,21 @@ export default async function LessonPage({
                       ? Boolean(progress?.exercises_completed)
                       : false;
                 return (
-                  <div key={step.key} className="flex items-center gap-2">
-                    {i > 0 && <div className="h-px w-8 bg-[var(--outline-variant)]" />}
-                    <Link
-                      href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=${step.key}`}
-                      className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
-                        isActive
-                          ? "bg-[var(--primary)] text-white"
-                          : isDone
-                            ? "bg-emerald-50 text-emerald-700"
-                            : "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"
-                      }`}
-                    >
-                      <step.icon size={13} strokeWidth={1.5} />
-                      {step.label}
-                    </Link>
-                  </div>
+                  <Link
+                    key={step.key}
+                    href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=${step.key}`}
+                    className={`-mb-px flex items-center gap-1.5 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+                      isActive
+                        ? "border-[var(--primary)] text-[var(--primary)]"
+                        : isDone
+                          ? "border-transparent text-emerald-600 hover:text-[var(--on-surface)]"
+                          : "border-transparent text-[var(--on-surface-variant)] hover:text-[var(--on-surface)]"
+                    }`}
+                  >
+                    <step.icon size={14} strokeWidth={1.5} />
+                    {step.label}
+                    {isDone && !isActive && <CheckCircle2 size={12} className="text-emerald-500" />}
+                  </Link>
                 );
               })}
             </div>
@@ -367,19 +363,19 @@ export default async function LessonPage({
         </div>
 
         {query.error ? (
-          <div className="mb-5 rounded-lg border border-[var(--error-container)] bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
+          <div className="mt-5 rounded-md border-l-4 border-[var(--error)] bg-[var(--error-container)] px-4 py-3 text-sm text-[var(--on-error-container)]">
             {query.error === "exercise-failed"
               ? "The score is below the minimum required. Repeat the exercise to continue."
               : "The test score is below 80%. Review the summary and try again."}
           </div>
         ) : null}
         {query.success === "exercise-passed" ? (
-          <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="mt-5 rounded-md border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
             Exercise passed. Review the result and corrections below, then continue from the course page.
           </div>
         ) : null}
 
-        <div>
+        <div className="mt-8">
           {stage === "practice_task" ? (
             <PracticeTaskStep
               courseId={courseId}
@@ -443,93 +439,61 @@ function PracticeTaskStep({
       : "Complete the task described below and submit your written response. Your tutor will review it and provide personalised feedback.";
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[var(--secondary-container)] text-[var(--secondary)]">
-            <ClipboardList strokeWidth={1.5} size={18} />
-          </div>
-          <div>
-            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Practice Task</h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
-              Submit your response. Your tutor will review it and provide feedback.
-            </p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {submission ? (
-          <div className="space-y-5">
-            <PracticeTaskStatus
-              status={submission.status}
-              reviewerNotes={submission.reviewer_notes}
-              reviewedAt={submission.reviewed_at}
-            />
-            {submission.content_json?.response && (
-              <div className="rounded-xl border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
-                  Your submission
-                </p>
-                <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--on-surface)]">
-                  {submission.content_json.response}
-                </p>
-              </div>
-            )}
-            {submission.status === "revision_needed" && (
-              <PracticeTaskForm
-                courseId={courseId}
-                unitId={unitId}
-                lessonId={lesson.id}
-                instructions={instructions}
-              />
-            )}
-          </div>
-        ) : (
-          <PracticeTaskForm
-            courseId={courseId}
-            unitId={unitId}
-            lessonId={lesson.id}
-            instructions={instructions}
+    <div>
+      <div className="mb-6 flex items-center gap-2 text-[var(--on-surface-variant)]">
+        <ClipboardList strokeWidth={1.5} size={16} />
+        <span className="text-sm">Submit your response. Your tutor will review it and provide feedback.</span>
+      </div>
+      {submission ? (
+        <div className="space-y-6">
+          <PracticeTaskStatus
+            status={submission.status}
+            reviewerNotes={submission.reviewer_notes}
+            reviewedAt={submission.reviewed_at}
           />
-        )}
-      </CardContent>
-    </Card>
+          {submission.content_json?.response && (
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
+                Your submission
+              </p>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--on-surface)]">
+                {submission.content_json.response}
+              </p>
+            </div>
+          )}
+          {submission.status === "revision_needed" && (
+            <PracticeTaskForm courseId={courseId} unitId={unitId} lessonId={lesson.id} instructions={instructions} />
+          )}
+        </div>
+      ) : (
+        <PracticeTaskForm courseId={courseId} unitId={unitId} lessonId={lesson.id} instructions={instructions} />
+      )}
+    </div>
   );
 }
 
 function SummaryStep({ courseId, lesson, unitId }: { courseId: string; lesson: Lesson; unitId: string }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-            <FileText strokeWidth={1.5} size={18} />
-          </div>
-          <div>
-            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Unit PDF summary</h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
-              Review this summary before taking the graded test.
-            </p>
-          </div>
+    <div>
+      <p className="mb-5 text-sm leading-6 text-[var(--on-surface-variant)]">
+        Review this summary before taking the graded test.
+      </p>
+      {lesson.pdf_url ? (
+        <Link
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)] transition-colors"
+          href={lesson.pdf_url}
+          target="_blank"
+        >
+          <FileText strokeWidth={1.5} size={16} />
+          Open PDF
+        </Link>
+      ) : (
+        <div className="rounded-md border border-dashed border-[var(--outline-variant)] p-4 text-sm text-[var(--outline)]">
+          PDF pending. Upload the summary to Supabase Storage and save its public URL in this lesson.
         </div>
-      </CardHeader>
-      <CardContent>
-        {lesson.pdf_url ? (
-          <Link
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
-            href={lesson.pdf_url}
-            target="_blank"
-          >
-            <FileText strokeWidth={1.5} size={16} />
-            Open PDF
-          </Link>
-        ) : (
-          <div className="rounded-lg border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm leading-6 text-[var(--outline)]">
-            PDF pending. Upload the summary to Supabase Storage and save its public URL in this lesson.
-          </div>
-        )}
-
-        <form action={completeSummaryLesson} className="mt-5">
+      )}
+      <div className="mt-8 border-t border-[var(--outline-variant)] pt-6">
+        <form action={completeSummaryLesson}>
           <input name="courseId" type="hidden" value={courseId} />
           <input name="unitId" type="hidden" value={unitId} />
           <input name="lessonId" type="hidden" value={lesson.id} />
@@ -538,8 +502,8 @@ function SummaryStep({ courseId, lesson, unitId }: { courseId: string; lesson: L
             Mark summary as reviewed
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -547,55 +511,42 @@ function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Les
   const videoEmbedUrl = getVideoEmbedUrl(lesson.video_url);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-            <PlayCircle strokeWidth={1.5} size={18} />
-          </div>
-          <div>
-            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Lesson video</h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
-              Complete this step before opening the exercises.
-            </p>
-          </div>
+    <div>
+      {videoEmbedUrl ? (
+        <div className="overflow-hidden rounded-md bg-black">
+          <iframe
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            className="aspect-video w-full"
+            src={videoEmbedUrl}
+            title={lesson.title}
+          />
         </div>
-      </CardHeader>
-      <CardContent>
-        {videoEmbedUrl ? (
-          <div className="overflow-hidden rounded-lg border border-[var(--outline-variant)] bg-black">
-            <iframe
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="aspect-video w-full"
-              src={videoEmbedUrl}
-              title={lesson.title}
-            />
-          </div>
-        ) : (
-          <figure className="relative flex aspect-video w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-lg border border-[var(--outline-variant)] bg-gradient-to-br from-[var(--surface-container-low)] via-[var(--surface-container)] to-[var(--surface-container-high)] p-6 text-center">
-            <div
-              aria-hidden="true"
-              className="absolute inset-0 opacity-[0.4]"
-              style={{
-                backgroundImage:
-                  "linear-gradient(var(--outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--outline-variant) 1px, transparent 1px)",
-                backgroundSize: "44px 44px",
-                maskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)",
-                WebkitMaskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)"
-              }}
-            />
-            <span className="ds-chip absolute left-4 top-4">Coming soon</span>
-            <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary)] shadow-[0_14px_36px_rgba(42,111,151,0.30)]">
-              <Play size={24} strokeWidth={1.5} className="translate-x-0.5" />
-            </span>
-            <figcaption className="relative max-w-xs text-sm leading-6 text-[var(--on-surface-variant)]">
-              Video pending. Once the content is added, the lesson video will appear here.
-            </figcaption>
-          </figure>
-        )}
+      ) : (
+        <figure className="relative flex aspect-video w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-md border border-[var(--outline-variant)] bg-gradient-to-br from-[var(--surface-container-low)] via-[var(--surface-container)] to-[var(--surface-container-high)] p-6 text-center">
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 opacity-[0.4]"
+            style={{
+              backgroundImage:
+                "linear-gradient(var(--outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--outline-variant) 1px, transparent 1px)",
+              backgroundSize: "44px 44px",
+              maskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)",
+              WebkitMaskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)"
+            }}
+          />
+          <span className="ds-chip absolute left-4 top-4">Coming soon</span>
+          <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary)] shadow-[0_14px_36px_rgba(42,111,151,0.30)]">
+            <Play size={24} strokeWidth={1.5} className="translate-x-0.5" />
+          </span>
+          <figcaption className="relative max-w-xs text-sm leading-6 text-[var(--on-surface-variant)]">
+            Video pending. Once the content is added, the lesson video will appear here.
+          </figcaption>
+        </figure>
+      )}
 
-        <form action={completeLessonVideo} className="mt-5">
+      <div className="mt-8 border-t border-[var(--outline-variant)] pt-6">
+        <form action={completeLessonVideo}>
           <input name="courseId" type="hidden" value={courseId} />
           <input name="unitId" type="hidden" value={unitId} />
           <input name="lessonId" type="hidden" value={lesson.id} />
@@ -605,8 +556,8 @@ function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Les
             {lesson.lesson_type === "video" ? "Mark video as watched and continue" : "Mark video as watched and start exercises"}
           </Button>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -658,32 +609,25 @@ function ExercisesStep({
 }) {
   if (videoRequired && !progress?.video_completed) {
     return (
-      <Card>
-        <CardHeader>
-          <div className="flex items-start gap-3">
-            <Lock className="mt-1 text-[var(--outline)]" strokeWidth={1.5} size={20} />
-            <div>
-              <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Exercises locked</h2>
-              <p className="mt-1 text-sm text-[var(--on-surface-variant)]">Complete the lesson video first.</p>
-            </div>
-          </div>
-        </CardHeader>
-      </Card>
+      <div className="flex items-center gap-3 py-6 text-[var(--on-surface-variant)]">
+        <Lock strokeWidth={1.5} size={18} />
+        <div>
+          <p className="font-medium text-[var(--on-surface)]">Exercises locked</p>
+          <p className="text-sm">Complete the lesson video first.</p>
+        </div>
+      </div>
     );
   }
 
   // No exercises loaded yet
   if (exercises.length === 0) {
     return (
-      <Card>
-        <CardHeader>
-          <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Lesson exercises</h2>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-lg border border-dashed border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm leading-6 text-[var(--outline)]">
-            Exercises pending. They will appear here once the prepared content is loaded.
-          </div>
-          <form action={submitLessonExercises} className="mt-4">
+      <div>
+        <div className="rounded-md border border-dashed border-[var(--outline-variant)] p-4 text-sm text-[var(--outline)]">
+          Exercises pending. They will appear here once the prepared content is loaded.
+        </div>
+        <div className="mt-8 border-t border-[var(--outline-variant)] pt-6">
+          <form action={submitLessonExercises}>
             <input name="courseId" type="hidden" value={courseId} />
             <input name="unitId" type="hidden" value={unitId} />
             <input name="lessonId" type="hidden" value={lesson.id} />
@@ -692,8 +636,8 @@ function ExercisesStep({
               Mark as complete and continue
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
@@ -715,17 +659,15 @@ function ExercisesStep({
   // All passed but action hasn't redirected yet (edge case)
   if (allPassed) {
     return (
-      <Card>
-        <CardContent className="py-8 text-center">
-          <p className="font-semibold text-[var(--on-surface)]">All exercises completed!</p>
-          <Link
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)]"
-            href={`/dashboard/courses/${courseId}`}
-          >
-            Back to course
-          </Link>
-        </CardContent>
-      </Card>
+      <div className="py-8 text-center">
+        <p className="font-semibold text-[var(--on-surface)]">All exercises completed!</p>
+        <Link
+          className="mt-4 inline-flex h-10 items-center justify-center rounded-md border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] hover:bg-[var(--surface-container-low)] transition-colors"
+          href={`/dashboard/courses/${courseId}`}
+        >
+          Back to course
+        </Link>
+      </div>
     );
   }
 
@@ -739,66 +681,61 @@ function ExercisesStep({
     ) || getExerciseQuestions(currentExercise.content_json).length > 0;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
-              Exercise {currentIdx + 1} of {exercises.length} · {currentExercise.exercise_type}
-            </p>
-            <h2 className="font-display mt-1 text-2xl font-semibold text-[var(--on-surface)]">
-              {currentExercise.title}
-            </h2>
-          </div>
-          {/* Progress dots */}
-          <div className="flex shrink-0 items-center gap-1.5 pt-1">
-            {exercises.map((ex, i) => (
-              <div
-                key={ex.id}
-                className={`h-2.5 w-2.5 rounded-full transition-colors ${
-                  passedIds.has(ex.id)
-                    ? "bg-emerald-500"
-                    : i === currentIdx
-                      ? "bg-[var(--primary)]"
-                      : "border border-[var(--outline-variant)]"
-                }`}
-              />
-            ))}
-          </div>
+    <div>
+      {/* Exercise header + progress */}
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
+            Exercise {currentIdx + 1} of {exercises.length} · {currentExercise.exercise_type}
+          </p>
+          <h2 className="font-display mt-1 text-xl font-semibold text-[var(--on-surface)]">
+            {currentExercise.title}
+          </h2>
         </div>
-      </CardHeader>
-      <CardContent>
-        {/* Failed attempt feedback */}
-        {currentAttempt && !currentAttempt.passed && (
-          <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            <p className="font-medium">{currentAttempt.ai_feedback ?? "Incorrect answer. Try again."}</p>
-          </div>
+        <div className="flex shrink-0 items-center gap-1.5 pt-1">
+          {exercises.map((ex, i) => (
+            <div
+              key={ex.id}
+              className={`h-2 w-2 rounded-full transition-colors ${
+                passedIds.has(ex.id)
+                  ? "bg-emerald-500"
+                  : i === currentIdx
+                    ? "bg-[var(--primary)]"
+                    : "bg-[var(--outline-variant)]"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {currentAttempt && !currentAttempt.passed && (
+        <div className="mb-5 border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <p className="font-medium">{currentAttempt.ai_feedback ?? "Incorrect answer. Try again."}</p>
+        </div>
+      )}
+
+      <form action={submitSingleExercise} className="space-y-6">
+        <input name="courseId" type="hidden" value={courseId} />
+        <input name="unitId" type="hidden" value={unitId} />
+        <input name="lessonId" type="hidden" value={lesson.id} />
+        <input name="exerciseId" type="hidden" value={currentExercise.id} />
+
+        {!isFillInBlanks && (
+          <p className="text-sm leading-6 text-[var(--on-surface-variant)]">
+            {formatExerciseContent(currentExercise.content_json)}
+          </p>
         )}
 
-        <form action={submitSingleExercise} className="space-y-5">
-          <input name="courseId" type="hidden" value={courseId} />
-          <input name="unitId" type="hidden" value={unitId} />
-          <input name="lessonId" type="hidden" value={lesson.id} />
-          <input name="exerciseId" type="hidden" value={currentExercise.id} />
+        <ExerciseAnswerControl exercise={currentExercise} previousAttempt={currentAttempt ?? undefined} />
 
-          {!isFillInBlanks && (
-            <p className="text-sm leading-6 text-[var(--on-surface-variant)]">
-              {formatExerciseContent(currentExercise.content_json)}
-            </p>
-          )}
-
-          <ExerciseAnswerControl
-            exercise={currentExercise}
-            previousAttempt={currentAttempt ?? undefined}
-          />
-
+        <div className="border-t border-[var(--outline-variant)] pt-6">
           <Button type="submit">
             <CheckCircle2 strokeWidth={1.5} size={16} />
             {currentAttempt && !currentAttempt.passed ? "Try again" : "Submit answer"}
           </Button>
-        </form>
-      </CardContent>
-    </Card>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -821,13 +758,83 @@ function ExerciseAnswerControl({
     );
   }
 
+  const freeWritingData = getFreeWritingData(exercise.content_json);
+  const sentencesData = !freeWritingData ? getExerciseSentences(exercise.content_json) : null;
+  const pairs = getExercisePairs(exercise.content_json);
   const blanksData = getExerciseBlanks(exercise.content_json) ?? getExerciseBlanksFromItems(exercise.content_json);
   const textBlanksData = !blanksData ? getExerciseTextBlanks(exercise.content_json) : null;
   const items = getExerciseItems(exercise.content_json);
   const options = getExerciseOptions(exercise.content_json);
   const previousAnswer = readPreviousAnswer(previousAttempt);
   const incorrectAnswers = getIncorrectAnswers(previousAttempt);
+  const incorrectIds = new Set(incorrectAnswers.map((a) => a.itemId));
   const score = formatAttemptScore(previousAttempt);
+
+  if (freeWritingData) {
+    return (
+      <div className="mt-4 space-y-3">
+        <FreeWritingExercise
+          exerciseId={exercise.id}
+          data={freeWritingData}
+          previousAnswer={previousAnswer.answer}
+        />
+        {previousAttempt && (
+          <div className={previousAttempt.passed
+            ? "border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+            : "border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-800"}>
+            <p className="font-medium whitespace-pre-wrap">{previousAttempt.ai_feedback ?? (previousAttempt.passed ? "Submitted." : "Review and try again.")}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (sentencesData) {
+    return (
+      <div className="mt-4 space-y-3">
+        {typeof exercise.content_json.instructions === "string" && (
+          <p className="text-sm text-[var(--on-surface-variant)]">{exercise.content_json.instructions as string}</p>
+        )}
+        <SentenceTransformExercise
+          exerciseId={exercise.id}
+          sentences={sentencesData.sentences}
+          example={sentencesData.example}
+          previousAnswers={previousAnswer}
+          incorrectIds={incorrectIds}
+        />
+        {previousAttempt && (
+          <div className={previousAttempt.passed
+            ? "border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+            : "border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-800"}>
+            <p className="font-medium">{score ? `Score: ${score}%. ` : ""}{previousAttempt.ai_feedback ?? (previousAttempt.passed ? "Correct!" : "Review and try again.")}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (pairs) {
+    return (
+      <div className="mt-4 space-y-3">
+        {typeof exercise.content_json.instructions === "string" && (
+          <p className="text-sm text-[var(--on-surface-variant)]">{exercise.content_json.instructions as string}</p>
+        )}
+        <MatchingExercise
+          exerciseId={exercise.id}
+          pairs={pairs}
+          previousAnswers={previousAnswer}
+          incorrectIds={incorrectIds}
+        />
+        {previousAttempt && (
+          <div className={previousAttempt.passed
+            ? "border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+            : "border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-800"}>
+            <p className="font-medium">{score ? `Score: ${score}%. ` : ""}{previousAttempt.ai_feedback ?? (previousAttempt.passed ? "All answers correct!" : "Review the marked terms and try again.")}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4 space-y-3">
@@ -853,19 +860,19 @@ function ExerciseAnswerControl({
       {blanksData || textBlanksData ? null : items.length > 0 ? (
         <div className="space-y-4">
           {items.map((item) => (
-            <fieldset className="space-y-2 rounded-lg bg-[var(--surface-container-low)] p-3" key={item.id}>
-              <legend className="text-sm font-medium leading-6 text-[var(--on-surface)]">
+            <fieldset key={item.id}>
+              <legend className="mb-2 text-sm font-medium leading-6 text-[var(--on-surface)]">
                 {item.number ? `${item.number}. ` : ""}
                 {item.question}
               </legend>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className="divide-y divide-[var(--outline-variant)] rounded-md border border-[var(--outline-variant)]">
                 {item.options.map((option) => (
                   <label
-                    className="flex min-h-11 items-center gap-2 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface-variant)] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-[var(--primary-fixed)]"
+                    className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm text-[var(--on-surface-variant)] transition-colors hover:bg-[var(--surface-container-low)] has-[:checked]:bg-[var(--primary-fixed)] has-[:checked]:text-[var(--on-surface)]"
                     key={option.value}
                   >
                     <input
-                      className="h-4 w-4 accent-[var(--primary)]"
+                      className="h-4 w-4 shrink-0 accent-[var(--primary)]"
                       defaultChecked={previousAnswer[item.id] === option.value}
                       name={`answer_${exercise.id}_${item.id}`}
                       required
@@ -880,14 +887,14 @@ function ExerciseAnswerControl({
           ))}
         </div>
       ) : options.length > 0 ? (
-        <div className="grid gap-2 sm:grid-cols-2">
+        <div className="divide-y divide-[var(--outline-variant)] rounded-md border border-[var(--outline-variant)]">
           {options.map((option) => (
             <label
-              className="flex min-h-11 items-center gap-2 rounded-lg border border-[var(--outline-variant)] px-3 py-2 text-sm text-[var(--on-surface-variant)] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-[var(--primary-fixed)]"
+              className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm text-[var(--on-surface-variant)] transition-colors hover:bg-[var(--surface-container-low)] has-[:checked]:bg-[var(--primary-fixed)] has-[:checked]:text-[var(--on-surface)]"
               key={option.value}
             >
               <input
-                className="h-4 w-4 accent-[var(--primary)]"
+                className="h-4 w-4 shrink-0 accent-[var(--primary)]"
                 defaultChecked={previousAnswer.answer === option.value}
                 name={`answer_${exercise.id}`}
                 required
@@ -916,8 +923,8 @@ function ExerciseAnswerControl({
         <div
           className={
             previousAttempt.passed
-              ? "rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-800"
-              : "rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+              ? "border-l-4 border-emerald-500 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
+              : "border-l-4 border-amber-400 bg-amber-50 px-4 py-3 text-sm text-amber-800"
           }
         >
           <p className="font-medium">
@@ -985,117 +992,109 @@ function TestStep({
     : [];
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start gap-3">
-          <div className="brand-accent-bg flex h-10 w-10 shrink-0 items-center justify-center rounded-lg">
-            <Trophy strokeWidth={1.5} size={18} />
-          </div>
-          <div>
-            <h2 className="font-display text-2xl font-semibold text-[var(--on-surface)]">Graded test</h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--on-surface-variant)]">
-              Passing score: {minimumScore.toFixed(0)}%. If the score is below that, the next unit remains locked.
-            </p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        {allAttempted && overallScore !== null ? (
-          <>
-            <div
-              className={
-                unitCompleted
-                  ? "rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-800"
-                  : "rounded-lg border border-amber-200 bg-amber-50 px-4 py-4 text-amber-800"
-              }
-            >
-              <p className="text-lg font-semibold">
-                Score: {overallScore}% —{" "}
-                {unitCompleted ? "Unit passed!" : `Below the ${minimumScore.toFixed(0)}% required.`}
-              </p>
-              {incorrectByExercise.length > 0 && (
-                <div className="mt-3 space-y-3">
-                  <p className="text-sm font-medium">Corrections</p>
-                  {incorrectByExercise.map(({ exercise: ex, incorrect }) => (
-                    <div key={ex.id}>
-                      <p className="text-sm font-medium">{ex.title}</p>
-                      <ul className="mt-1 space-y-1 text-sm">
-                        {incorrect.map((item) => (
-                          <li key={item.itemId}>
-                            {item.itemId}: your answer was{" "}
-                            <span className="font-semibold">{item.submittedAnswer || "—"}</span>; correct answer is{" "}
-                            <span className="font-semibold">{item.correctText ?? item.correctAnswer}</span>.
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+    <div>
+      <p className="mb-6 text-sm text-[var(--on-surface-variant)]">
+        Passing score: {minimumScore.toFixed(0)}%. If the score is below that, the next unit remains locked.
+      </p>
 
-            {unitCompleted ? (
+      {allAttempted && overallScore !== null ? (
+        <div className="mb-8">
+          <div
+            className={
+              unitCompleted
+                ? "border-l-4 border-emerald-500 bg-emerald-50 px-4 py-4 text-emerald-800"
+                : "border-l-4 border-amber-400 bg-amber-50 px-4 py-4 text-amber-800"
+            }
+          >
+            <p className="text-lg font-semibold">
+              Score: {overallScore}% — {unitCompleted ? "Unit passed!" : `Below the ${minimumScore.toFixed(0)}% required.`}
+            </p>
+            {incorrectByExercise.length > 0 && (
+              <div className="mt-3 space-y-3">
+                <p className="text-sm font-medium">Corrections</p>
+                {incorrectByExercise.map(({ exercise: ex, incorrect }) => (
+                  <div key={ex.id}>
+                    <p className="text-sm font-medium">{ex.title}</p>
+                    <ul className="mt-1 space-y-1 text-sm">
+                      {incorrect.map((item) => (
+                        <li key={item.itemId}>
+                          {item.itemId}: your answer was{" "}
+                          <span className="font-semibold">{item.submittedAnswer || "—"}</span>; correct answer is{" "}
+                          <span className="font-semibold">{item.correctText ?? item.correctAnswer}</span>.
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {unitCompleted && (
+            <div className="mt-5">
               <Link
-                className="brand-accent-bg inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold"
+                className="brand-accent-bg inline-flex h-10 items-center justify-center gap-2 rounded-md px-5 text-sm font-semibold"
                 href={`/dashboard/courses/${courseId}`}
               >
                 Go to course
               </Link>
-            ) : null}
-          </>
-        ) : null}
-
-        {!unitCompleted && exercises.length > 0 ? (
-          <form action={submitUnitTestExercises} className="space-y-5">
-            <input name="courseId" type="hidden" value={courseId} />
-            <input name="unitId" type="hidden" value={unitId} />
-            <input name="examLessonId" type="hidden" value={lesson.id} />
-            <input name="minimumScore" type="hidden" value={minimumScore} />
-
-            <div className="space-y-3">
-              {exercises.map((exercise) => {
-                const isFillInBlanks = Boolean(
-                  getExerciseBlanks(exercise.content_json) ??
-                    getExerciseBlanksFromItems(exercise.content_json) ??
-                    getExerciseTextBlanks(exercise.content_json)
-                );
-
-                return (
-                  <div className="rounded-lg border border-[var(--outline-variant)] p-4" key={exercise.id}>
-                    <p className="text-sm font-medium text-[var(--outline)]">Question {exercise.sort_order}</p>
-                    <h3 className="mt-1 font-semibold text-[var(--on-surface)]">{exercise.title}</h3>
-                    {!isFillInBlanks && getExerciseQuestions(exercise.content_json).length === 0 && (
-                      <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)]">
-                        {formatExerciseContent(exercise.content_json)}
-                      </p>
-                    )}
-                    <ExerciseAnswerControl exercise={exercise} />
-                  </div>
-                );
-              })}
             </div>
+          )}
+        </div>
+      ) : null}
 
+      {!unitCompleted && exercises.length > 0 ? (
+        <form action={submitUnitTestExercises} className="space-y-0">
+          <input name="courseId" type="hidden" value={courseId} />
+          <input name="unitId" type="hidden" value={unitId} />
+          <input name="examLessonId" type="hidden" value={lesson.id} />
+          <input name="minimumScore" type="hidden" value={minimumScore} />
+
+          <div className="divide-y divide-[var(--outline-variant)]">
+            {exercises.map((exercise) => {
+              const isFillInBlanks = Boolean(
+                getExerciseBlanks(exercise.content_json) ??
+                  getExerciseBlanksFromItems(exercise.content_json) ??
+                  getExerciseTextBlanks(exercise.content_json)
+              );
+              return (
+                <div className="py-6" key={exercise.id}>
+                  <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
+                    Question {exercise.sort_order}
+                  </p>
+                  <h3 className="mb-3 font-semibold text-[var(--on-surface)]">{exercise.title}</h3>
+                  {!isFillInBlanks && getExerciseQuestions(exercise.content_json).length === 0 && (
+                    <p className="mb-3 text-sm leading-6 text-[var(--on-surface-variant)]">
+                      {formatExerciseContent(exercise.content_json)}
+                    </p>
+                  )}
+                  <ExerciseAnswerControl exercise={exercise} />
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="border-t border-[var(--outline-variant)] pt-6">
             <Button className="w-full" type="submit">
               <CheckCircle2 strokeWidth={1.5} size={16} />
               {allAttempted ? "Retry test" : "Submit test"}
             </Button>
-          </form>
-        ) : !unitCompleted && exercises.length === 0 ? (
-          <form action={submitUnitTest} className="space-y-4">
-            <input name="courseId" type="hidden" value={courseId} />
-            <input name="unitId" type="hidden" value={unitId} />
-            <input name="examLessonId" type="hidden" value={lesson.id} />
-            <div className="space-y-2">
-              <Label htmlFor="score">Score achieved</Label>
-              <Input id="score" max={100} min={0} name="score" required step="1" type="number" />
-            </div>
-            <Button className="w-full" type="submit">
-              Submit test
-            </Button>
-          </form>
-        ) : null}
-      </CardContent>
-    </Card>
+          </div>
+        </form>
+      ) : !unitCompleted && exercises.length === 0 ? (
+        <form action={submitUnitTest} className="space-y-4">
+          <input name="courseId" type="hidden" value={courseId} />
+          <input name="unitId" type="hidden" value={unitId} />
+          <input name="examLessonId" type="hidden" value={lesson.id} />
+          <div className="space-y-2">
+            <Label htmlFor="score">Score achieved</Label>
+            <Input id="score" max={100} min={0} name="score" required step="1" type="number" />
+          </div>
+          <Button className="w-full" type="submit">
+            Submit test
+          </Button>
+        </form>
+      ) : null}
+    </div>
   );
 }
 
@@ -1180,29 +1179,22 @@ function QuestionsExercise({
 
       {modelText && <ModelTextBlock modelText={modelText} />}
 
-      <div className="space-y-4">
+      <div className="space-y-5">
         {questions.map((q) => {
           const prevAnswer = previousAnswers[q.id];
           const isWrong = incorrectIds.has(q.id);
 
           return (
-            <fieldset
-              key={q.id}
-              className={`space-y-2 rounded-lg border p-4 ${
-                isWrong
-                  ? "border-amber-300 bg-amber-50/50"
-                  : "border-[var(--outline-variant)] bg-[var(--surface-container-low)]"
-              }`}
-            >
-              <legend className="text-sm font-semibold leading-6 text-[var(--on-surface)]">
+            <fieldset key={q.id}>
+              <legend
+                className={`mb-2 text-sm font-semibold leading-6 ${isWrong ? "text-amber-700" : "text-[var(--on-surface)]"}`}
+              >
                 {q.text}
                 {q.type === "multiple" && (
-                  <span className="ml-2 text-xs font-normal text-[var(--outline)]">
-                    (Select all that apply)
-                  </span>
+                  <span className="ml-2 text-xs font-normal text-[var(--outline)]">(Select all that apply)</span>
                 )}
               </legend>
-              <div className="grid gap-2 sm:grid-cols-2">
+              <div className={`divide-y rounded-md border ${isWrong ? "divide-amber-200 border-amber-300" : "divide-[var(--outline-variant)] border-[var(--outline-variant)]"}`}>
                 {q.options.map((option) => {
                   const isChecked = Array.isArray(prevAnswer)
                     ? prevAnswer.includes(option)
@@ -1210,10 +1202,10 @@ function QuestionsExercise({
                   return (
                     <label
                       key={option}
-                      className="flex min-h-10 cursor-pointer items-center gap-2.5 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] px-3 py-2 text-sm text-[var(--on-surface-variant)] has-[:checked]:border-[var(--primary)] has-[:checked]:bg-[var(--primary-fixed)]"
+                      className="flex cursor-pointer items-center gap-3 px-4 py-3 text-sm text-[var(--on-surface-variant)] transition-colors hover:bg-[var(--surface-container-low)] has-[:checked]:bg-[var(--primary-fixed)] has-[:checked]:text-[var(--on-surface)]"
                     >
                       <input
-                        className="h-4 w-4 accent-[var(--primary)]"
+                        className="h-4 w-4 shrink-0 accent-[var(--primary)]"
                         defaultChecked={isChecked}
                         name={`answer_${exercise.id}_${q.id}`}
                         type={q.type === "multiple" ? "checkbox" : "radio"}
@@ -1258,7 +1250,7 @@ function ModelTextBlock({ modelText }: { modelText: Record<string, unknown> }) {
   );
 
   return (
-    <div className="space-y-3 rounded-lg border border-[var(--outline-variant)] bg-[var(--surface-container-low)] p-4 text-sm leading-6">
+    <div className="space-y-3 rounded-sm border-l-4 border-[var(--outline-variant)] bg-[var(--surface-container-low)] py-4 pl-5 pr-4 text-sm leading-6">
       {profile && <p className="italic text-[var(--on-surface)]">{profile}</p>}
       {education && (
         <div>
@@ -1408,6 +1400,283 @@ function getIncorrectAnswers(attempt?: ExerciseAttempt) {
       }
     ];
   });
+}
+
+// ── Free writing exercise (job_ad / survey_data / report tasks) ──────────────
+
+type SurveyIssue = { rank: number; issue: string; percentage: string };
+type SurveyData = {
+  overall_satisfaction?: Record<string, string>;
+  specific_issues?: SurveyIssue[];
+};
+
+type FreeWritingData = {
+  instructions: string;
+  minWords: number | null;
+  jobAd: string | null;
+  surveyData: SurveyData | null;
+  checklist: string[];
+  requiredSections: string[];
+};
+
+function getFreeWritingData(content: Record<string, unknown>): FreeWritingData | null {
+  if (typeof content.min_words !== "number" && typeof content.min_words !== "string") return null;
+  const instructions = typeof content.instructions === "string" ? content.instructions : null;
+  if (!instructions) return null;
+  const jobAd = typeof content.job_ad === "string" ? content.job_ad : null;
+  const rawSurvey = content.survey_data;
+  const surveyData =
+    typeof rawSurvey === "object" && rawSurvey !== null && !Array.isArray(rawSurvey)
+      ? (rawSurvey as SurveyData)
+      : null;
+  const checklist = Array.isArray(content.checklist)
+    ? content.checklist.flatMap((c) => (typeof c === "string" ? [c] : []))
+    : [];
+  const requiredSections = Array.isArray(content.required_sections)
+    ? content.required_sections.flatMap((s) => (typeof s === "string" ? [s] : []))
+    : [];
+  return {
+    instructions,
+    minWords: Number(content.min_words) || null,
+    jobAd,
+    surveyData,
+    checklist,
+    requiredSections,
+  };
+}
+
+function FreeWritingExercise({
+  exerciseId,
+  data,
+  previousAnswer,
+}: {
+  exerciseId: string;
+  data: FreeWritingData;
+  previousAnswer: string;
+}) {
+  return (
+    <div className="space-y-6">
+      <p className="text-sm leading-6 text-[var(--on-surface-variant)]">{data.instructions}</p>
+
+      {data.jobAd && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">Job advertisement</p>
+          <div className="rounded-sm border-l-4 border-[var(--outline-variant)] bg-[var(--surface-container-low)] py-3 pl-4 pr-4 text-sm leading-6 text-[var(--on-surface)]">
+            {data.jobAd}
+          </div>
+        </div>
+      )}
+
+      {data.surveyData && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">Survey results</p>
+          <div className="overflow-hidden rounded-sm border border-[var(--outline-variant)]">
+            {data.surveyData.overall_satisfaction && (
+              <div className="border-b border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-3">
+                <p className="mb-2 text-xs font-semibold text-[var(--on-surface)]">Overall satisfaction</p>
+                <div className="flex flex-wrap gap-4">
+                  {Object.entries(data.surveyData.overall_satisfaction).map(([k, v]) => (
+                    <div key={k} className="text-center">
+                      <p className="text-lg font-bold text-[var(--primary)]">{v}</p>
+                      <p className="text-xs text-[var(--on-surface-variant)]">{k.replace(/_/g, " ")}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {data.surveyData.specific_issues && (
+              <div className="divide-y divide-[var(--outline-variant)]">
+                {data.surveyData.specific_issues.map((issue) => (
+                  <div key={issue.rank} className="flex items-center gap-4 px-4 py-2.5 text-sm">
+                    <span className="w-6 shrink-0 text-xs font-bold text-[var(--outline)]">{issue.rank}.</span>
+                    <span className="flex-1 text-[var(--on-surface)]">{issue.issue}</span>
+                    <span className="shrink-0 font-semibold text-[var(--primary)]">{issue.percentage}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {data.requiredSections.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">Required sections</p>
+          <div className="flex flex-wrap gap-2">
+            {data.requiredSections.map((s) => (
+              <span key={s} className="rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container)] px-3 py-1 text-xs font-medium text-[var(--on-surface)]">
+                {s}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {data.checklist.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">Self-check before submitting</p>
+          <ul className="space-y-1.5">
+            {data.checklist.map((item) => (
+              <li key={item} className="flex items-start gap-2 text-sm text-[var(--on-surface-variant)]">
+                <span className="mt-0.5 h-4 w-4 shrink-0 rounded border border-[var(--outline-variant)]" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {data.minWords && (
+        <p className="text-xs text-[var(--outline)]">Minimum {data.minWords} words.</p>
+      )}
+
+      <textarea
+        name={`answer_${exerciseId}`}
+        defaultValue={previousAnswer}
+        required
+        rows={12}
+        placeholder="Write your answer here…"
+        className="w-full rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-low)] px-4 py-3 text-sm leading-6 text-[var(--on-surface)] outline-none transition-colors placeholder:text-[var(--outline)] focus:border-[var(--primary)]"
+      />
+    </div>
+  );
+}
+
+type ExerciseSentence = { id: string; original: string; prompt?: string };
+type ExerciseExample = { original: string; transformed: string };
+
+function getExerciseSentences(content: Record<string, unknown>): { sentences: ExerciseSentence[]; example: ExerciseExample | null } | null {
+  if (!Array.isArray(content.sentences)) return null;
+  const sentences = content.sentences.flatMap((s) => {
+    if (typeof s !== "object" || s === null || Array.isArray(s)) return [];
+    const sm = s as Record<string, unknown>;
+    if (typeof sm.id !== "string" || typeof sm.original !== "string") return [];
+    return [{ id: sm.id, original: sm.original, prompt: typeof sm.prompt === "string" ? sm.prompt : undefined }];
+  });
+  if (sentences.length === 0) return null;
+  const ex = content.example as Record<string, unknown> | undefined;
+  const example =
+    ex && typeof ex.original === "string" && typeof ex.transformed === "string"
+      ? { original: ex.original, transformed: ex.transformed }
+      : null;
+  return { sentences, example };
+}
+
+function SentenceTransformExercise({
+  exerciseId,
+  sentences,
+  example,
+  previousAnswers,
+  incorrectIds,
+}: {
+  exerciseId: string;
+  sentences: ExerciseSentence[];
+  example: ExerciseExample | null;
+  previousAnswers: Record<string, string>;
+  incorrectIds: Set<string>;
+}) {
+  return (
+    <div className="space-y-6">
+      {example && (
+        <div className="rounded-md border-l-4 border-[var(--outline-variant)] bg-[var(--surface-container-low)] py-3 pl-4 pr-4 text-sm">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">Example</p>
+          <p className="text-[var(--on-surface-variant)] line-through decoration-[var(--outline)]">{example.original}</p>
+          <p className="mt-1 font-medium text-[var(--on-surface)]">{example.transformed}</p>
+        </div>
+      )}
+      <div className="divide-y divide-[var(--outline-variant)]">
+        {sentences.map((s, idx) => {
+          const isWrong = incorrectIds.has(s.id);
+          return (
+            <div key={s.id} className="py-5">
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
+                {idx + 1}.
+              </p>
+              <p className="mb-3 text-sm leading-6 text-[var(--on-surface-variant)]">{s.original}</p>
+              <textarea
+                name={`answer_${exerciseId}_${s.id}`}
+                defaultValue={previousAnswers[s.id] ?? ""}
+                required
+                rows={2}
+                placeholder={s.prompt ? `${s.prompt.replace(/___.*/, "").trim()} …` : "Write the transformed sentence…"}
+                className={`w-full rounded-md border px-3 py-2 text-sm text-[var(--on-surface)] outline-none transition-colors placeholder:text-[var(--outline)] focus:border-[var(--primary)] ${
+                  isWrong
+                    ? "border-amber-400 bg-amber-50"
+                    : "border-[var(--outline-variant)] bg-[var(--surface-container-low)]"
+                }`}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+type ExercisePair = { id: string; term: string; options: string[] };
+
+function getExercisePairs(content: Record<string, unknown>): ExercisePair[] | null {
+  if (!Array.isArray(content.pairs)) return null;
+  const pairs = content.pairs.flatMap((p) => {
+    if (typeof p !== "object" || p === null || Array.isArray(p)) return [];
+    const pm = p as Record<string, unknown>;
+    if ((typeof pm.id !== "number" && typeof pm.id !== "string") || typeof pm.term !== "string") return [];
+    const options = Array.isArray(pm.options)
+      ? pm.options.flatMap((o) => (typeof o === "string" ? [o] : []))
+      : [];
+    return [{ id: String(pm.id), term: pm.term, options }];
+  });
+  return pairs.length > 0 ? pairs : null;
+}
+
+function MatchingExercise({
+  exerciseId,
+  pairs,
+  previousAnswers,
+  incorrectIds,
+}: {
+  exerciseId: string;
+  pairs: ExercisePair[];
+  previousAnswers: Record<string, string>;
+  incorrectIds: Set<string>;
+}) {
+  const allOptions = pairs[0]?.options ?? [];
+  return (
+    <div className="divide-y divide-[var(--outline-variant)]">
+      {pairs.map((pair, idx) => {
+        const isWrong = incorrectIds.has(pair.id);
+        return (
+          <div key={pair.id} className="flex flex-wrap items-baseline gap-x-8 gap-y-3 py-4">
+            <span
+              className={`w-44 shrink-0 text-sm font-bold uppercase tracking-wide ${
+                isWrong ? "text-amber-600" : "text-[var(--on-surface)]"
+              }`}
+            >
+              {idx + 1}. {pair.term}
+            </span>
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {allOptions.map((opt) => (
+                <label
+                  key={opt}
+                  className="cursor-pointer text-sm text-[var(--on-surface-variant)] transition-colors hover:text-[var(--on-surface)] has-[:checked]:font-semibold has-[:checked]:text-[var(--primary)] has-[:checked]:[text-decoration:underline]"
+                >
+                  <input
+                    type="radio"
+                    name={`answer_${exerciseId}_${pair.id}`}
+                    value={opt}
+                    defaultChecked={previousAnswers[pair.id] === opt}
+                    required
+                    className="sr-only"
+                  />
+                  {opt}
+                </label>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 function getExerciseTextBlanks(content: Record<string, unknown>) {

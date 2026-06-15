@@ -174,7 +174,9 @@ function correctQuestionsMapAnswer(
   // Must not be the existing { answers: [...] } array format
   if (Array.isArray(correctAnswerJson.answers)) return null;
 
-  const entries = Object.entries(correctAnswerJson);
+  // Only evaluate keys that the user actually submitted — ignore metadata keys
+  // like "evaluation_criteria", "accepted_alternatives", etc.
+  const entries = Object.entries(correctAnswerJson).filter(([key]) => key in submitted);
   if (entries.length === 0) return null;
 
   let correctCount = 0;

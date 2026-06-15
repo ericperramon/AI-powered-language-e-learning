@@ -16,6 +16,28 @@ type Course = {
   estimated_duration_minutes: number | null;
 };
 
+type CourseGroup = {
+  title: string;
+  description: string | null;
+  target_language: string;
+  levels: { id: string; level: string | null; estimated_duration_minutes: number | null }[];
+};
+
+const LEVEL_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"];
+
+const STATIC_COMING_SOON_COURSES: { title: string; description: string; tag: string }[] = [
+  {
+    title: "English for Presentations",
+    description: "Aprende a estructurar y defender presentaciones profesionales en inglés con confianza y claridad.",
+    tag: "Inglés",
+  },
+  {
+    title: "English for Negotiations",
+    description: "Domina el vocabulario y las estrategias clave para negociar con éxito en entornos internacionales.",
+    tag: "Inglés",
+  },
+];
+
 export default async function LandingPage({
   searchParams,
 }: {
@@ -45,6 +67,33 @@ export default async function LandingPage({
   } catch {
     // Supabase unavailable — show page without courses
   }
+
+  const courseGroups = courses.reduce<CourseGroup[]>((acc, course) => {
+    const dashIdx = course.title.lastIndexOf(" - ");
+    const baseTitle = dashIdx !== -1 ? course.title.slice(0, dashIdx) : course.title;
+    const levelLabel = dashIdx !== -1 ? course.title.slice(dashIdx + 3) : (course.level ?? null);
+
+    const existing = acc.find((g) => g.title === baseTitle);
+    if (existing) {
+      existing.levels.push({ id: course.id, level: levelLabel, estimated_duration_minutes: course.estimated_duration_minutes });
+    } else {
+      acc.push({
+        title: baseTitle,
+        description: course.description,
+        target_language: course.target_language,
+        levels: [{ id: course.id, level: levelLabel, estimated_duration_minutes: course.estimated_duration_minutes }],
+      });
+    }
+    return acc;
+  }, []);
+
+  courseGroups.forEach((g) =>
+    g.levels.sort((a, b) => {
+      const ia = LEVEL_ORDER.indexOf(a.level ?? "");
+      const ib = LEVEL_ORDER.indexOf(b.level ?? "");
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    })
+  );
 
   const courseRequestSuccess = params.success === "course-request";
   const courseRequestError = params.error === "missing-fields";
@@ -178,17 +227,19 @@ export default async function LandingPage({
             subtitle="Explora nuestra oferta actual. Regístrate para obtener más información y acceder al contenido."
           />
 
-          {courses.length === 0 ? (
-            <p className="mt-10 text-center text-sm text-[var(--on-surface-variant)]">
-              Próximamente — los cursos estarán disponibles muy pronto.
-            </p>
-          ) : (
-            <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {courses.map((course) => (
-                <CourseCard key={course.id} course={course} />
-              ))}
-            </div>
-          )}
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {courseGroups.map((group) => (
+              <GroupedCourseCard key={group.title} group={group} />
+            ))}
+            {STATIC_COMING_SOON_COURSES.map((c) => (
+              <ComingSoonCourseCard key={c.title} title={c.title} description={c.description} tag={c.tag} />
+            ))}
+            {courseGroups.length === 0 && STATIC_COMING_SOON_COURSES.length === 0 && (
+              <p className="col-span-full text-center text-sm text-[var(--on-surface-variant)]">
+                Próximamente — los cursos estarán disponibles muy pronto.
+              </p>
+            )}
+          </div>
         </div>
       </section>
 
@@ -316,32 +367,37 @@ function SectionHeader({
   );
 }
 
-function CourseCard({ course }: { course: Course }) {
-  const duration = course.estimated_duration_minutes
-    ? course.estimated_duration_minutes >= 60
-      ? `${Math.round(course.estimated_duration_minutes / 60)}h`
-      : `${course.estimated_duration_minutes}min`
-    : null;
+function GroupedCourseCard({ group }: { group: CourseGroup }) {
+  const hasMultipleLevels = group.levels.length > 1;
 
   return (
     <div className="surface-card flex flex-col gap-4 p-5">
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="ds-chip">{course.target_language}</span>
-          {course.level && (
-            <span className="text-xs text-[var(--on-surface-variant)]">{course.level}</span>
-          )}
-          {duration && (
-            <span className="text-xs text-[var(--on-surface-variant)]">{duration}</span>
-          )}
+          <span className="ds-chip">{group.target_language}</span>
         </div>
         <h3 className="font-display mt-3 text-lg font-semibold leading-snug text-[var(--on-surface)]">
-          {course.title}
+          {group.title}
         </h3>
-        {course.description && (
+        {group.description && (
           <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)] line-clamp-3">
-            {course.description}
+            {group.description}
           </p>
+        )}
+        {hasMultipleLevels && (
+          <div className="mt-3">
+            <p className="mb-2 text-xs font-medium text-[var(--on-surface-variant)]">Niveles disponibles</p>
+            <div className="flex flex-wrap gap-1.5">
+              {group.levels.map((l) => (
+                <span
+                  key={l.id}
+                  className="inline-flex items-center rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container)] px-2.5 py-0.5 text-xs font-semibold text-[var(--on-surface)]"
+                >
+                  {l.level ?? "—"}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
       </div>
       <div className="mt-auto">
@@ -351,6 +407,40 @@ function CourseCard({ course }: { course: Course }) {
             <ArrowRight size={14} strokeWidth={2} />
           </Button>
         </Link>
+      </div>
+    </div>
+  );
+}
+
+function ComingSoonCourseCard({
+  title,
+  description,
+  tag,
+}: {
+  title: string;
+  description: string;
+  tag: string;
+}) {
+  return (
+    <div className="surface-card flex flex-col gap-4 p-5 opacity-60">
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="ds-chip">{tag}</span>
+          <span className="inline-flex items-center rounded-md bg-[var(--surface-container-high)] px-2 py-0.5 text-xs font-medium text-[var(--on-surface-variant)]">
+            Próximamente
+          </span>
+        </div>
+        <h3 className="font-display mt-3 text-lg font-semibold leading-snug text-[var(--on-surface)]">
+          {title}
+        </h3>
+        <p className="mt-2 text-sm leading-6 text-[var(--on-surface-variant)] line-clamp-3">
+          {description}
+        </p>
+      </div>
+      <div className="mt-auto">
+        <Button variant="secondary" className="h-10 w-full" disabled>
+          Disponible próximamente
+        </Button>
       </div>
     </div>
   );
