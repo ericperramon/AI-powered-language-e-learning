@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { AiAssistant } from "@/components/ai-assistant";
+import { AiAssistantMount } from "@/components/ai-assistant-mount";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -41,7 +41,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <div className="flex min-w-0 flex-1 flex-col pt-14 lg:pt-0">
         {children}
       </div>
-      {!isAdmin && <AiAssistant />}
+      {!isAdmin && <AiAssistantMount />}
     </div>
   );
 }

@@ -19,10 +19,10 @@ type RealtimeEvent = { type: string; [key: string]: unknown };
 
 const WELCOME_MESSAGE = "Hi! How can I help you?";
 
-export function AiAssistant() {
+export function AiAssistant({ variant = "floating" }: { variant?: "floating" | "page" }) {
   const { courseContext } = useAssistantContext();
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(variant === "page");
   const [mode, setMode] = useState<ConversationMode | null>(null);
   const [status, setStatus] = useState<AssistantStatus>("idle");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -296,6 +296,150 @@ export function AiAssistant() {
           }
         ];
 
+  const panelContent =
+    mode === "voice" ? (
+      <div className="assistant-voice-interface">
+        {variant === "floating" && (
+          <button
+            aria-label="Cerrar asistente de voz"
+            className="assistant-voice-back"
+            type="button"
+            onClick={() => setIsExpanded(false)}
+          >
+            <X size={22} />
+          </button>
+        )}
+
+        <div className="assistant-voice-orb" aria-hidden="true">
+          <span className="assistant-voice-orb-core" />
+        </div>
+
+        <button
+          aria-label="Volver al chat por texto"
+          className="assistant-voice-keyboard"
+          type="button"
+          onClick={switchToTextMode}
+        >
+          <Keyboard size={28} />
+        </button>
+
+        {error ? <p className="assistant-chat-error assistant-voice-error">{error}</p> : null}
+
+        <div className="assistant-voice-bottom">
+          <button
+            aria-label="Microfono activo"
+            className="assistant-voice-mic"
+            type="button"
+            onClick={muteVoiceMode}
+          >
+            <Mic size={32} />
+          </button>
+          <div className="assistant-voice-status">
+            {status === "sending" ? "Connecting" : status === "replying" ? "Speaking" : "Listening"}
+          </div>
+        </div>
+      </div>
+    ) : (
+      <>
+        <header className="assistant-chat-header">
+          <span className="assistant-chat-status">{statusLabel}</span>
+          {variant === "floating" && (
+            <button
+              aria-label="Cerrar panel del asistente"
+              className="assistant-chat-close"
+              type="button"
+              onClick={() => setIsExpanded(false)}
+            >
+              <X size={18} />
+            </button>
+          )}
+        </header>
+
+        <div className="assistant-chat-messages">
+          {visibleMessages.map((message) => (
+            <div
+              className={cn(
+                "assistant-chat-message",
+                message.role === "student" && "assistant-chat-message-student"
+              )}
+              key={message.id}
+            >
+              <div
+                className={cn(
+                  "assistant-chat-bubble",
+                  message.role === "student" && "assistant-chat-bubble-student"
+                )}
+              >
+                {message.content}
+                {message.audioUrl ? (
+                  <audio className="assistant-chat-audio" controls src={message.audioUrl}>
+                    Audio response
+                  </audio>
+                ) : null}
+              </div>
+              <span className="assistant-chat-time">{message.createdAt}</span>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {error ? <p className="assistant-chat-error">{error}</p> : null}
+
+        <form className="assistant-chat-controls" onSubmit={sendTextMessage}>
+          <button
+            aria-label="Activar microfono"
+            className="assistant-chat-mic"
+            type="button"
+            onClick={toggleVoiceMode}
+          >
+            <Mic size={24} />
+          </button>
+          <div className="assistant-chat-input-wrap">
+            <input
+              className="assistant-chat-input"
+              placeholder="Write now..."
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onFocus={() => ensureConversation("text")}
+            />
+            {input.trim() ? (
+              <button
+                aria-label="Enviar mensaje"
+                className="assistant-chat-send"
+                disabled={status === "sending"}
+                type="submit"
+              >
+                <Send size={22} />
+              </button>
+            ) : (
+              <button
+                aria-label="Enviar mensaje"
+                className="assistant-chat-send assistant-chat-send-idle"
+                disabled
+                type="submit"
+              >
+                <Send size={22} />
+              </button>
+            )}
+          </div>
+        </form>
+      </>
+    );
+
+  if (variant === "page") {
+    return (
+      <section
+        aria-label="Asistente IA"
+        className={cn(
+          "assistant-chat-panel assistant-chat-panel-page",
+          mode === "voice" && "assistant-chat-panel-voice"
+        )}
+      >
+        {panelContent}
+      </section>
+    );
+  }
+
   return (
     <div className="fixed bottom-5 right-5 z-50 flex max-w-[calc(100vw-2.5rem)] flex-col items-end gap-3">
       {isExpanded ? (
@@ -306,134 +450,7 @@ export function AiAssistant() {
             mode === "voice" && "assistant-chat-panel-voice"
           )}
         >
-          {mode === "voice" ? (
-            <div className="assistant-voice-interface">
-              <button
-                aria-label="Cerrar asistente de voz"
-                className="assistant-voice-back"
-                type="button"
-                onClick={() => setIsExpanded(false)}
-              >
-                <X size={22} />
-              </button>
-
-              <div className="assistant-voice-orb" aria-hidden="true">
-                <span className="assistant-voice-orb-core" />
-              </div>
-
-              <button
-                aria-label="Volver al chat por texto"
-                className="assistant-voice-keyboard"
-                type="button"
-                onClick={switchToTextMode}
-              >
-                <Keyboard size={28} />
-              </button>
-
-              {error ? <p className="assistant-chat-error assistant-voice-error">{error}</p> : null}
-
-              <div className="assistant-voice-bottom">
-                <button
-                  aria-label="Microfono activo"
-                  className="assistant-voice-mic"
-                  type="button"
-                  onClick={muteVoiceMode}
-                >
-                  <Mic size={32} />
-                </button>
-                <div className="assistant-voice-status">
-                  {status === "sending"
-                    ? "Connecting"
-                    : status === "replying"
-                      ? "Speaking"
-                      : "Listening"}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              <header className="assistant-chat-header">
-                <span className="assistant-chat-status">{statusLabel}</span>
-                <button
-                  aria-label="Cerrar panel del asistente"
-                  className="assistant-chat-close"
-                  type="button"
-                  onClick={() => setIsExpanded(false)}
-                >
-                  <X size={18} />
-                </button>
-              </header>
-
-              <div className="assistant-chat-messages">
-                {visibleMessages.map((message) => (
-                  <div
-                    className={cn(
-                      "assistant-chat-message",
-                      message.role === "student" && "assistant-chat-message-student"
-                    )}
-                    key={message.id}
-                  >
-                    <div
-                      className={cn(
-                        "assistant-chat-bubble",
-                        message.role === "student" && "assistant-chat-bubble-student"
-                      )}
-                    >
-                      {message.content}
-                      {message.audioUrl ? (
-                        <audio className="assistant-chat-audio" controls src={message.audioUrl}>
-                          Audio response
-                        </audio>
-                      ) : null}
-                    </div>
-                    <span className="assistant-chat-time">{message.createdAt}</span>
-                  </div>
-                ))}
-                <div ref={messagesEndRef} />
-              </div>
-
-              {error ? <p className="assistant-chat-error">{error}</p> : null}
-
-              <form className="assistant-chat-controls" onSubmit={sendTextMessage}>
-                <button
-                  aria-label="Activar microfono"
-                  className="assistant-chat-mic"
-                  type="button"
-                  onClick={toggleVoiceMode}
-                >
-                  <Mic size={24} />
-                </button>
-                <div className="assistant-chat-input-wrap">
-                  <input
-                    className="assistant-chat-input"
-                    placeholder="Write now..."
-                    value={input}
-                    onChange={(event) => setInput(event.target.value)}
-                    onFocus={() => ensureConversation("text")}
-                  />
-                  {input.trim() ? (
-                    <button
-                      aria-label="Enviar mensaje"
-                      className="assistant-chat-send"
-                      disabled={status === "sending"}
-                      type="submit"
-                    >
-                      <Send size={22} />
-                    </button>
-                  ) : (
-                    <button
-                      aria-label="Enviar mensaje"
-                      className="assistant-chat-send assistant-chat-send-idle"
-                      disabled
-                      type="submit"
-                    >
-                      <Send size={22} />
-                    </button>
-                  )}
-                </div>
-              </form>
-            </>
-          )}
+          {panelContent}
         </section>
       ) : null}
 

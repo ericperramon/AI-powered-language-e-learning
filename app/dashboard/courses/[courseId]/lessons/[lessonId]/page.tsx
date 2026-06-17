@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, CheckCircle2, ChevronRight, ClipboardList, FileText, Lock, Play, PlayCircle, Trophy } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ChevronRight, FileText, Lock, PlayCircle, Trophy } from "lucide-react";
 import {
-  completeLessonVideo,
   completeSummaryLesson,
   submitLessonExercises,
   submitSingleExercise,
@@ -10,9 +9,7 @@ import {
   submitUnitTestExercises
 } from "@/app/dashboard/courses/[courseId]/actions";
 import { FillInBlanksExercise } from "@/components/exercises/fill-in-blanks";
-import { PracticeTaskForm } from "@/components/exercises/practice-task-form";
-import { PracticeTaskStatus } from "@/components/courses/practice-task-status";
-import type { PracticeTaskSubmissionStatus } from "@/components/courses/practice-task-status";
+import { LessonVideoPlayer } from "@/components/courses/lesson-video-player";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -22,13 +19,13 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AssistantContextSetter } from "@/components/assistant-context-setter";
 import type { AssistantCourseContext } from "@/lib/assistant/system-prompt";
 
-type Stage = "video" | "exercises" | "summary" | "test" | "practice_task";
+type Stage = "video" | "exercises" | "summary" | "test";
 
 type Lesson = {
   id: string;
   title: string;
   description: string | null;
-  lesson_type: "video" | "text" | "exercise" | "mixed" | "exam" | "practice_task";
+  lesson_type: "video" | "text" | "exercise" | "mixed" | "exam";
   sort_order: number;
   video_url: string | null;
   pdf_url: string | null;
@@ -115,13 +112,6 @@ type LessonProgress = {
   score: number | string | null;
 };
 
-type PracticeTaskSubmission = {
-  status: PracticeTaskSubmissionStatus;
-  reviewer_notes: string | null;
-  reviewed_at: string | null;
-  content_json: { response?: string };
-};
-
 export default async function LessonPage({
   params,
   searchParams
@@ -169,7 +159,6 @@ export default async function LessonPage({
     { data: progress },
     { data: exerciseAttemptsData },
     { data: allUnitsData },
-    { data: practiceSubmission },
   ] = await Promise.all([
     admin
       .from("lessons")
@@ -204,12 +193,6 @@ export default async function LessonPage({
       .order("sort_order")
       .order("sort_order", { foreignTable: "lessons" })
       .returns<UnitIndex[]>(),
-    admin
-      .from("practice_task_submissions")
-      .select("status, reviewer_notes, reviewed_at, content_json")
-      .eq("employee_id", user.id)
-      .eq("lesson_id", lessonId)
-      .maybeSingle<PracticeTaskSubmission>(),
   ]);
 
   if (!lesson) {
@@ -236,14 +219,9 @@ export default async function LessonPage({
   }
 
   const isSummaryLesson = lesson.lesson_type === "text" && Boolean(lesson.pdf_url);
-  const isPracticeTaskLesson = lesson.lesson_type === "practice_task";
 
   if (isSummaryLesson && stage !== "summary") {
     redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=summary`);
-  }
-
-  if (isPracticeTaskLesson && stage !== "practice_task") {
-    redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=practice_task`);
   }
 
   const exercises = exercisesData ?? [];
@@ -252,6 +230,9 @@ export default async function LessonPage({
 
   const allUnits = allUnitsData ?? [];
   const previousUnit = allUnits.find((u) => u.sort_order === unit.sort_order - 1) ?? null;
+  const currentUnitIndex = allUnits.find((u) => u.id === unit.id);
+  const nextLessonId =
+    currentUnitIndex?.lessons.find((l) => l.sort_order === lesson.sort_order + 1)?.id ?? null;
 
   const assistantContext: AssistantCourseContext = {
     course: { title: course.title, target_language: course.target_language, level: course.level },
@@ -284,16 +265,14 @@ export default async function LessonPage({
       ? null
       : lesson.lesson_type === "exam"
         ? null
-        : lesson.lesson_type === "practice_task"
-          ? [{ key: "practice_task", label: "Practice Task", icon: ClipboardList }]
-          : lesson.lesson_type === "video"
-            ? [{ key: "video", label: "Video", icon: PlayCircle }]
-            : lesson.lesson_type === "exercise"
-              ? [{ key: "exercises", label: "Exercises", icon: CheckCircle2 }]
-              : [
-                  { key: "video", label: "Video", icon: PlayCircle },
-                  { key: "exercises", label: "Exercises", icon: CheckCircle2 }
-                ];
+        : lesson.lesson_type === "video"
+          ? [{ key: "video", label: "Video", icon: PlayCircle }]
+          : lesson.lesson_type === "exercise"
+            ? [{ key: "exercises", label: "Exercises", icon: CheckCircle2 }]
+            : [
+                { key: "video", label: "Video", icon: PlayCircle },
+                { key: "exercises", label: "Exercises", icon: CheckCircle2 }
+              ];
 
   return (
     <main className="min-h-screen w-full px-5 py-8 sm:px-8 lg:px-10">
@@ -376,17 +355,10 @@ export default async function LessonPage({
         ) : null}
 
         <div className="mt-8">
-          {stage === "practice_task" ? (
-            <PracticeTaskStep
-              courseId={courseId}
-              lesson={lesson}
-              unitId={unit.id}
-              submission={practiceSubmission}
-            />
-          ) : stage === "summary" ? (
+          {stage === "summary" ? (
             <SummaryStep courseId={courseId} lesson={lesson} unitId={unit.id} />
           ) : stage === "video" ? (
-            <VideoStep courseId={courseId} lesson={lesson} unitId={unit.id} />
+            <VideoStep courseId={courseId} lesson={lesson} unitId={unit.id} nextLessonId={nextLessonId} />
           ) : stage === "exercises" ? (
             <ExercisesStep
               attempts={exerciseAttempts}
@@ -415,61 +387,11 @@ export default async function LessonPage({
 }
 
 function normalizeStage(stage?: string): Stage {
-  if (stage === "exercises" || stage === "summary" || stage === "test" || stage === "practice_task") {
+  if (stage === "exercises" || stage === "summary" || stage === "test") {
     return stage;
   }
 
   return "video";
-}
-
-function PracticeTaskStep({
-  courseId,
-  lesson,
-  unitId,
-  submission,
-}: {
-  courseId: string;
-  lesson: Lesson;
-  unitId: string;
-  submission: PracticeTaskSubmission | null;
-}) {
-  const instructions =
-    typeof (lesson.content_json as Record<string, unknown>).instructions === "string"
-      ? (lesson.content_json as Record<string, unknown>).instructions as string
-      : "Complete the task described below and submit your written response. Your tutor will review it and provide personalised feedback.";
-
-  return (
-    <div>
-      <div className="mb-6 flex items-center gap-2 text-[var(--on-surface-variant)]">
-        <ClipboardList strokeWidth={1.5} size={16} />
-        <span className="text-sm">Submit your response. Your tutor will review it and provide feedback.</span>
-      </div>
-      {submission ? (
-        <div className="space-y-6">
-          <PracticeTaskStatus
-            status={submission.status}
-            reviewerNotes={submission.reviewer_notes}
-            reviewedAt={submission.reviewed_at}
-          />
-          {submission.content_json?.response && (
-            <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--outline)]">
-                Your submission
-              </p>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-[var(--on-surface)]">
-                {submission.content_json.response}
-              </p>
-            </div>
-          )}
-          {submission.status === "revision_needed" && (
-            <PracticeTaskForm courseId={courseId} unitId={unitId} lessonId={lesson.id} instructions={instructions} />
-          )}
-        </div>
-      ) : (
-        <PracticeTaskForm courseId={courseId} unitId={unitId} lessonId={lesson.id} instructions={instructions} />
-      )}
-    </div>
-  );
 }
 
 function SummaryStep({ courseId, lesson, unitId }: { courseId: string; lesson: Lesson; unitId: string }) {
@@ -507,87 +429,28 @@ function SummaryStep({ courseId, lesson, unitId }: { courseId: string; lesson: L
   );
 }
 
-function VideoStep({ courseId, lesson, unitId }: { courseId: string; lesson: Lesson; unitId: string }) {
-  const videoEmbedUrl = getVideoEmbedUrl(lesson.video_url);
-
+function VideoStep({
+  courseId,
+  lesson,
+  unitId,
+  nextLessonId
+}: {
+  courseId: string;
+  lesson: Lesson;
+  unitId: string;
+  nextLessonId: string | null;
+}) {
   return (
-    <div>
-      {videoEmbedUrl ? (
-        <div className="overflow-hidden rounded-md bg-black">
-          <iframe
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            className="aspect-video w-full"
-            src={videoEmbedUrl}
-            title={lesson.title}
-          />
-        </div>
-      ) : (
-        <figure className="relative flex aspect-video w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-md border border-[var(--outline-variant)] bg-gradient-to-br from-[var(--surface-container-low)] via-[var(--surface-container)] to-[var(--surface-container-high)] p-6 text-center">
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 opacity-[0.4]"
-            style={{
-              backgroundImage:
-                "linear-gradient(var(--outline-variant) 1px, transparent 1px), linear-gradient(90deg, var(--outline-variant) 1px, transparent 1px)",
-              backgroundSize: "44px 44px",
-              maskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)",
-              WebkitMaskImage: "radial-gradient(ellipse at center, black 35%, transparent 78%)"
-            }}
-          />
-          <span className="ds-chip absolute left-4 top-4">Coming soon</span>
-          <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary)] shadow-[0_14px_36px_rgba(42,111,151,0.30)]">
-            <Play size={24} strokeWidth={1.5} className="translate-x-0.5" />
-          </span>
-          <figcaption className="relative max-w-xs text-sm leading-6 text-[var(--on-surface-variant)]">
-            Video pending. Once the content is added, the lesson video will appear here.
-          </figcaption>
-        </figure>
-      )}
-
-      <div className="mt-8 border-t border-[var(--outline-variant)] pt-6">
-        <form action={completeLessonVideo}>
-          <input name="courseId" type="hidden" value={courseId} />
-          <input name="unitId" type="hidden" value={unitId} />
-          <input name="lessonId" type="hidden" value={lesson.id} />
-          <input name="lessonType" type="hidden" value={lesson.lesson_type} />
-          <Button type="submit">
-            <CheckCircle2 strokeWidth={1.5} size={16} />
-            {lesson.lesson_type === "video" ? "Mark video as watched and continue" : "Mark video as watched and start exercises"}
-          </Button>
-        </form>
-      </div>
-    </div>
+    <LessonVideoPlayer
+      courseId={courseId}
+      unitId={unitId}
+      lessonId={lesson.id}
+      lessonType={lesson.lesson_type}
+      videoUrl={lesson.video_url}
+      title={lesson.title}
+      nextLessonId={nextLessonId}
+    />
   );
-}
-
-function getVideoEmbedUrl(videoUrl: string | null) {
-  if (!videoUrl) {
-    return null;
-  }
-
-  try {
-    const url = new URL(videoUrl);
-
-    if (url.hostname === "vimeo.com" || url.hostname === "www.vimeo.com") {
-      const videoId = url.pathname.split("/").filter(Boolean)[0];
-      return videoId ? `https://player.vimeo.com/video/${videoId}` : videoUrl;
-    }
-
-    if (url.hostname === "youtu.be") {
-      const videoId = url.pathname.split("/").filter(Boolean)[0];
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : videoUrl;
-    }
-
-    if (url.hostname === "youtube.com" || url.hostname === "www.youtube.com") {
-      const videoId = url.searchParams.get("v");
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : videoUrl;
-    }
-
-    return videoUrl;
-  } catch {
-    return videoUrl;
-  }
 }
 
 function ExercisesStep({

@@ -316,6 +316,15 @@ a {
   background: #f3f4f6;
 }
 
+.assistant-chat-panel-page {
+  width: 100%;
+  max-width: 720px;
+  height: min(720px, calc(100vh - 12rem));
+  min-height: 480px;
+  margin: 0 auto;
+  border-radius: var(--r-xl);
+}
+
 .assistant-voice-interface {
   position: relative;
   display: flex;

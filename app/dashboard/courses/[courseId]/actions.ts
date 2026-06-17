@@ -150,6 +150,31 @@ export async function completeLessonVideo(formData: FormData) {
   redirect(`/dashboard/courses/${courseId}/lessons/${lessonId}?stage=exercises`);
 }
 
+export async function markVideoWatched(courseId: string, unitId: string, lessonId: string, lessonType: string) {
+  const { userId } = await getActiveEnrollment(courseId);
+  const admin = createSupabaseAdminClient();
+
+  if (lessonType === "video") {
+    await markLessonExercisesCompleted(admin, userId, courseId, unitId, lessonId);
+    await updateEnrollmentProgress(userId, courseId, lessonId);
+    return;
+  }
+
+  await admin.from("lesson_progress").upsert(
+    {
+      employee_id: userId,
+      lesson_id: lessonId,
+      unit_id: unitId,
+      course_id: courseId,
+      is_unlocked: true,
+      video_completed: true,
+      started_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    },
+    { onConflict: "employee_id,lesson_id" }
+  );
+}
+
 export async function submitLessonExercises(formData: FormData) {
   const courseId = readText(formData, "courseId");
   const unitId = readText(formData, "unitId");
@@ -548,52 +573,6 @@ export async function submitUnitTestExercises(formData: FormData) {
   await updateEnrollmentProgress(userId, courseId, passed ? examLessonId : undefined);
 
   redirect(`/dashboard/courses/${courseId}/lessons/${examLessonId}?stage=test`);
-}
-
-export async function submitPracticeTask(formData: FormData) {
-  const courseId = readText(formData, "courseId");
-  const unitId = readText(formData, "unitId");
-  const lessonId = readText(formData, "lessonId");
-  const response = readText(formData, "response");
-
-  if (!courseId || !unitId || !lessonId) {
-    redirect("/dashboard?error=missing-learning-context");
-  }
-
-  const { userId } = await getActiveEnrollment(courseId);
-  const admin = createSupabaseAdminClient();
-  const now = new Date().toISOString();
-
-  await admin.from("practice_task_submissions").upsert(
-    {
-      employee_id: userId,
-      lesson_id: lessonId,
-      unit_id: unitId,
-      course_id: courseId,
-      content_json: { response },
-      status: "pending",
-      updated_at: now,
-    },
-    { onConflict: "employee_id,lesson_id" }
-  );
-
-  await admin.from("lesson_progress").upsert(
-    {
-      employee_id: userId,
-      lesson_id: lessonId,
-      unit_id: unitId,
-      course_id: courseId,
-      is_unlocked: true,
-      is_completed: true,
-      completed_at: now,
-      updated_at: now,
-    },
-    { onConflict: "employee_id,lesson_id" }
-  );
-
-  await updateEnrollmentProgress(userId, courseId, lessonId);
-
-  redirect(`/dashboard/courses/${courseId}?success=task-submitted`);
 }
 
 export async function submitUnitTest(formData: FormData) {

@@ -995,54 +995,6 @@ revoke all on all tables in schema public from public, anon, authenticated;
 revoke all on all functions in schema public from public, anon, authenticated;
 
 -- =========================================================
--- PRACTICE TASK SUBMISSIONS
--- Human-reviewed open-response submissions per unit lesson
--- =========================================================
-
-alter type public.lesson_type add value if not exists 'practice_task';
-
-create table public.practice_task_submissions (
-  id uuid primary key default gen_random_uuid(),
-  employee_id uuid not null references public.profiles(id) on delete cascade,
-  lesson_id uuid not null references public.lessons(id) on delete cascade,
-  unit_id uuid not null references public.units(id) on delete cascade,
-  course_id uuid not null references public.courses(id) on delete cascade,
-  content_json jsonb not null default '{}',
-  status text not null default 'pending'
-    check (status in ('pending', 'reviewed', 'revision_needed')),
-  reviewer_notes text,
-  reviewed_by uuid references public.profiles(id) on delete set null,
-  reviewed_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  constraint practice_task_submissions_unique unique (employee_id, lesson_id)
-);
-
-create index on public.practice_task_submissions (employee_id);
-create index on public.practice_task_submissions (course_id);
-
-alter table public.practice_task_submissions enable row level security;
-
-create policy "Users manage own practice submissions"
-  on public.practice_task_submissions for all to authenticated
-  using (employee_id = auth.uid())
-  with check (employee_id = auth.uid());
-
-create policy "Admins read company practice submissions"
-  on public.practice_task_submissions for select to authenticated
-  using (
-    is_company_admin()
-    and course_id in (
-      select course_id from public.enrollments
-      where company_id = current_user_company_id()
-    )
-  );
-
-create trigger practice_task_submissions_set_updated_at
-  before update on public.practice_task_submissions
-  for each row execute procedure public.set_updated_at();
-
--- =========================================================
 -- COURSE REQUESTS (public landing — no auth required)
 -- =========================================================
 
@@ -1069,7 +1021,6 @@ grant insert, update, delete on public.lesson_progress to authenticated;
 grant insert, update, delete on public.exercise_attempts to authenticated;
 grant insert, update, delete on public.ai_conversations to authenticated;
 grant insert, update, delete on public.ai_messages to authenticated;
-grant select, insert, update, delete on public.practice_task_submissions to authenticated;
 
 revoke update on public.profiles from authenticated;
 grant update (full_name, last_login_at) on public.profiles to authenticated;

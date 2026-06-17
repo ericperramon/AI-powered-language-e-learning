@@ -2,20 +2,34 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
+  BookOpen,
   CheckCircle2,
   ChevronRight,
-  ClipboardList,
   FileText,
   Lock,
+  Mic,
   PlayCircle,
+  SpellCheck,
   Trophy
 } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { AssistantContextSetter } from "@/components/assistant-context-setter";
+import { LessonVideoPlayer } from "@/components/courses/lesson-video-player";
 import type { AssistantCourseContext } from "@/lib/assistant/system-prompt";
 import { UnitRow } from "./unit-row";
+
+const SKILLS = [
+  { label: "Reading", icon: BookOpen },
+  { label: "Grammar", icon: SpellCheck },
+  { label: "Speaking", icon: Mic }
+] as const;
+
+function getSkillForLesson(title: string) {
+  const normalized = title.toLowerCase();
+  return SKILLS.find((skill) => normalized.includes(skill.label.toLowerCase()));
+}
 
 type Course = {
   id: string;
@@ -38,18 +52,13 @@ type Lesson = {
   id: string;
   title: string;
   description: string | null;
-  lesson_type: "video" | "text" | "exercise" | "mixed" | "exam" | "practice_task";
+  lesson_type: "video" | "text" | "exercise" | "mixed" | "exam";
   sort_order: number;
   video_url: string | null;
   pdf_url: string | null;
   requires_exam: boolean;
   minimum_score_to_pass: number | string | null;
   exercises: Array<{ count: number }>;
-};
-
-type PracticeTaskSubmission = {
-  lesson_id: string;
-  status: "pending" | "reviewed" | "revision_needed";
 };
 
 type LessonProgress = {
@@ -115,7 +124,6 @@ export default async function CoursePage({
     { data: unitsData },
     { data: lessonProgressData },
     { data: unitProgressData },
-    { data: practiceSubmissionsData },
     { data: passedAttemptsData },
   ] = await Promise.all([
     admin
@@ -145,12 +153,6 @@ export default async function CoursePage({
       .eq("course_id", courseId)
       .returns<UnitProgress[]>(),
     admin
-      .from("practice_task_submissions")
-      .select("lesson_id, status")
-      .eq("employee_id", user.id)
-      .eq("course_id", courseId)
-      .returns<PracticeTaskSubmission[]>(),
-    admin
       .from("exercise_attempts")
       .select("lesson_id, exercise_id")
       .eq("employee_id", user.id)
@@ -166,7 +168,6 @@ export default async function CoursePage({
   const units = unitsData ?? [];
   const lessonProgress = new Map((lessonProgressData ?? []).map((p) => [p.lesson_id, p]));
   const unitProgress = new Map((unitProgressData ?? []).map((p) => [p.unit_id, p]));
-  const practiceSubmissions = new Map((practiceSubmissionsData ?? []).map((s) => [s.lesson_id, s.status]));
   const progress = enrollment ? Math.min(Math.max(Number(enrollment.progress_percentage), 0), 100) : 0;
 
   const passedExercisesByLesson = new Map<string, number>();
@@ -269,6 +270,8 @@ export default async function CoursePage({
               Boolean(previousUnit && unitProgress.get(previousUnit.id)?.is_completed);
             const examLesson = unit.lessons.find((l) => l.lesson_type === "exam" || l.requires_exam);
             const orderedLessons = unit.lessons.filter((l) => l.id !== examLesson?.id);
+            const videoLesson = orderedLessons[0]?.lesson_type === "video" ? orderedLessons[0] : null;
+            const skillLessons = videoLesson ? orderedLessons.slice(1) : orderedLessons;
             const lessonsCompleted = isPreview || orderedLessons.every((l) => lessonProgress.get(l.id)?.is_completed);
             const unitCompleted = Boolean(unitProgress.get(unit.id)?.is_completed);
             const testUnlocked = isPreview || (unitIsUnlocked && orderedLessons.length > 0 && lessonsCompleted);
@@ -285,12 +288,29 @@ export default async function CoursePage({
                 total={orderedLessons.length}
                 defaultOpen={isFirstActiveUnit || (unitIndex === 0 && !unitCompleted)}
               >
+                {videoLesson && (
+                  <div className="mb-4">
+                    <LessonVideoPlayer
+                      courseId={course.id}
+                      unitId={unit.id}
+                      lessonId={videoLesson.id}
+                      lessonType={videoLesson.lesson_type}
+                      videoUrl={videoLesson.video_url}
+                      title={videoLesson.title}
+                      nextLessonId={skillLessons[0]?.id ?? null}
+                      locked={!unitIsUnlocked}
+                    />
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-2">
-                  {orderedLessons.map((lesson, lessonIndex) => {
-                    const previousLesson = orderedLessons[lessonIndex - 1];
+                  {skillLessons.map((lesson, lessonIndex) => {
+                    const previousLesson = videoLesson
+                      ? (lessonIndex === 0 ? videoLesson : skillLessons[lessonIndex - 1])
+                      : skillLessons[lessonIndex - 1];
                     const previousCompleted =
                       isPreview ||
-                      lessonIndex === 0 ||
+                      (lessonIndex === 0 && !videoLesson) ||
                       Boolean(previousLesson && lessonProgress.get(previousLesson.id)?.is_completed);
                     const lessonUnlocked = unitIsUnlocked && previousCompleted;
                     const lProgress = lessonProgress.get(lesson.id);
@@ -302,8 +322,8 @@ export default async function CoursePage({
                         lesson={lesson}
                         locked={!lessonUnlocked}
                         progress={lProgress}
-                        practiceStatus={practiceSubmissions.get(lesson.id)}
                         passedExerciseCount={passedExercisesByLesson.get(lesson.id) ?? 0}
+                        skill={getSkillForLesson(lesson.title)}
                       />
                     );
                   })}
@@ -378,69 +398,50 @@ function LessonCard({
   lesson,
   locked,
   progress,
-  practiceStatus,
   passedExerciseCount,
+  skill,
 }: {
   courseId: string;
   lesson: Lesson;
   locked: boolean;
   progress?: LessonProgress;
-  practiceStatus?: "pending" | "reviewed" | "revision_needed";
   passedExerciseCount: number;
+  skill?: (typeof SKILLS)[number];
 }) {
   const completed = Boolean(progress?.is_completed);
   const isSummary = lesson.lesson_type === "text" && lesson.pdf_url;
-  const isPracticeTask = lesson.lesson_type === "practice_task";
   const totalExercises = lesson.exercises?.[0]?.count ?? 0;
 
   function getIcon() {
     if (completed) return <CheckCircle2 strokeWidth={1.5} size={17} />;
     if (locked) return <Lock strokeWidth={1.5} size={16} />;
-    if (isPracticeTask) return <ClipboardList strokeWidth={1.5} size={17} />;
+    if (skill) return <skill.icon strokeWidth={1.5} size={17} />;
     if (isSummary) return <FileText strokeWidth={1.5} size={17} />;
     return <PlayCircle strokeWidth={1.5} size={17} />;
   }
 
   function getHref() {
-    if (isPracticeTask) return `/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=practice_task`;
     if (isSummary) return `/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=summary`;
     return `/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=${progress?.video_completed ? "exercises" : "video"}`;
   }
 
   function getButtonLabel() {
-    if (isPracticeTask) {
-      if (completed) return "View submission";
-      return "Submit Task";
-    }
     if (completed) return "Review";
     if (progress?.video_completed || passedExerciseCount > 0) return "Continue";
     return "Start";
   }
 
-  function getPracticeStatusSuffix() {
-    if (practiceStatus === "pending") return " · Pending review";
-    if (practiceStatus === "reviewed") return " · Reviewed ✓";
-    if (practiceStatus === "revision_needed") return " · Revision needed";
-    return "";
-  }
-
   const iconBg = locked
     ? "bg-[var(--surface-container)] text-[var(--on-surface-variant)]"
-    : completed && !isPracticeTask
+    : completed
       ? "bg-emerald-100 text-emerald-600"
-      : isPracticeTask && completed
-        ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)]"
-        : isPracticeTask
-          ? "bg-[var(--secondary-container)] text-[var(--secondary)]"
-          : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]";
+      : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)]";
 
   const rowBg = locked
     ? "border-[var(--outline-variant)] bg-[var(--surface-container-low)]"
-    : completed && !isPracticeTask
+    : completed
       ? "border-emerald-200 bg-emerald-50/30"
-      : isPracticeTask && completed
-        ? "border-[var(--secondary-fixed-dim)] bg-[var(--secondary-fixed)]"
-        : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]";
+      : "border-[var(--outline-variant)] bg-[var(--surface-container-lowest)]";
 
   return (
     <div className={`flex items-center gap-4 rounded-2xl border px-4 py-3.5 ${rowBg} ${locked ? "opacity-75" : ""}`}>
@@ -451,16 +452,9 @@ function LessonCard({
 
       {/* Label + title */}
       <div className="min-w-0 flex-1">
-        <p className="text-xs text-[var(--outline)]">
-          Lesson {lesson.sort_order}
-          {isPracticeTask && practiceStatus && (
-            <span className={`${practiceStatus === "reviewed" ? "text-[var(--primary)]" : practiceStatus === "revision_needed" ? "text-orange-600" : "text-amber-600"}`}>
-              {getPracticeStatusSuffix()}
-            </span>
-          )}
-        </p>
+        <p className="text-xs text-[var(--outline)]">{skill ? skill.label : `Lesson ${lesson.sort_order}`}</p>
         <h3 className="font-bold text-[var(--on-surface)] leading-tight">{lesson.title}</h3>
-        {totalExercises > 0 && !isPracticeTask && (
+        {totalExercises > 0 && (
           <p className="mt-0.5 text-xs text-[var(--on-surface-variant)]">
             {passedExerciseCount}/{totalExercises} exercises
           </p>
@@ -475,11 +469,9 @@ function LessonCard({
       ) : (
         <Link
           className={`inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold transition-colors ${
-            completed && !isPracticeTask
+            completed
               ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-              : isPracticeTask && completed
-                ? "bg-[var(--secondary-container)] text-[var(--on-secondary-container)] hover:opacity-80"
-                : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)] hover:bg-[var(--primary-fixed-dim)]"
+              : "bg-[var(--primary-fixed)] text-[var(--on-primary-fixed-variant)] hover:bg-[var(--primary-fixed-dim)]"
           }`}
           href={getHref()}
         >
