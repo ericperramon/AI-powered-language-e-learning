@@ -20,21 +20,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: guard.error }, { status: guard.status });
     }
 
-    const webhookUrl = process.env.N8N_ASSISTANT_TEXT_WEBHOOK_URL;
+    const contentType = request.headers.get("content-type") ?? "";
+    const isAudio = contentType.includes("multipart/form-data");
+
+    const webhookUrl = isAudio
+      ? process.env.N8N_ASSISTANT_AUDIO_WEBHOOK_URL
+      : process.env.N8N_ASSISTANT_TEXT_WEBHOOK_URL;
 
     if (!webhookUrl) {
-      return NextResponse.json(
-        { error: "Missing N8N_ASSISTANT_TEXT_WEBHOOK_URL server environment variable." },
-        { status: 500 }
-      );
+      const missingVar = isAudio ? "N8N_ASSISTANT_AUDIO_WEBHOOK_URL" : "N8N_ASSISTANT_TEXT_WEBHOOK_URL";
+      return NextResponse.json({ error: `Missing ${missingVar} server environment variable.` }, { status: 500 });
     }
 
-    const upstreamResponse = await forwardJsonRequest(request, webhookUrl);
+    const upstreamResponse = isAudio
+      ? await forwardAudioRequest(request, webhookUrl)
+      : await forwardJsonRequest(request, webhookUrl);
 
     if (!upstreamResponse.ok) {
       return NextResponse.json(
         {
-          error: `The n8n text webhook returned ${upstreamResponse.status}.`,
+          error: `The n8n ${isAudio ? "audio" : "text"} webhook returned ${upstreamResponse.status}.`,
           details: await readWebhookError(upstreamResponse)
         },
         { status: 502 }
@@ -73,5 +78,27 @@ async function forwardJsonRequest(request: Request, webhookUrl: string) {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ ...rest, systemPrompt })
+  });
+}
+
+async function forwardAudioRequest(request: Request, webhookUrl: string) {
+  const incomingForm = await request.formData();
+  const courseContextRaw = incomingForm.get("courseContext");
+  const courseContext =
+    typeof courseContextRaw === "string" && courseContextRaw
+      ? (JSON.parse(courseContextRaw) as AssistantCourseContext)
+      : null;
+  const systemPrompt = buildAssistantSystemPrompt(courseContext ?? null);
+
+  const outgoingForm = new FormData();
+  for (const [key, value] of incomingForm.entries()) {
+    if (key === "courseContext") continue;
+    outgoingForm.append(key, value);
+  }
+  outgoingForm.append("systemPrompt", systemPrompt);
+
+  return fetch(webhookUrl, {
+    method: "POST",
+    body: outgoingForm
   });
 }

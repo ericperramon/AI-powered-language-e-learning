@@ -23,15 +23,22 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const isSuperAdmin = profile?.role === "superadmin";
   const isAdmin = profile?.role === "admin";
 
-  let allCourses: Array<{ id: string; title: string }> = [];
+  type SidebarCourse = {
+    id: string;
+    title: string;
+    units: Array<{ id: string; title: string; sort_order: number }>;
+  };
+
+  let allCourses: SidebarCourse[] = [];
   if (isSuperAdmin) {
     const admin = createSupabaseAdminClient();
     const { data } = await admin
       .from("courses")
-      .select("id, title")
+      .select("id, title, units(id, title, sort_order)")
       .eq("is_active", true)
       .order("title")
-      .returns<Array<{ id: string; title: string }>>();
+      .order("sort_order", { foreignTable: "units" })
+      .returns<SidebarCourse[]>();
     allCourses = data ?? [];
   }
 

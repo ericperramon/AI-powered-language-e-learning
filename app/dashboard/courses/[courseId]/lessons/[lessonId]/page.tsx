@@ -10,6 +10,7 @@ import {
 } from "@/app/dashboard/courses/[courseId]/actions";
 import { FillInBlanksExercise } from "@/components/exercises/fill-in-blanks";
 import { LessonVideoPlayer } from "@/components/courses/lesson-video-player";
+import { SpeakingAvatar } from "@/components/speaking/speaking-avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -117,11 +118,12 @@ export default async function LessonPage({
   searchParams
 }: {
   params: Promise<{ courseId: string; lessonId: string }>;
-  searchParams: Promise<{ stage?: string; error?: string; success?: string }>;
+  searchParams: Promise<{ stage?: string; error?: string; success?: string; ex?: string }>;
 }) {
   const { courseId, lessonId } = await params;
   const query = await searchParams;
   const stage = normalizeStage(query.stage);
+  const previewIndex = Number.parseInt(query.ex ?? "", 10);
   const supabase = await createSupabaseServerClient();
   const {
     data: { user }
@@ -359,6 +361,8 @@ export default async function LessonPage({
             <SummaryStep courseId={courseId} lesson={lesson} unitId={unit.id} />
           ) : stage === "video" ? (
             <VideoStep courseId={courseId} lesson={lesson} unitId={unit.id} nextLessonId={nextLessonId} />
+          ) : stage === "exercises" && isSpeakingLesson(lesson) ? (
+            <SpeakingAvatar courseId={courseId} lessonId={lesson.id} />
           ) : stage === "exercises" ? (
             <ExercisesStep
               attempts={exerciseAttempts}
@@ -368,6 +372,8 @@ export default async function LessonPage({
               progress={progress}
               unitId={unit.id}
               videoRequired={!isPreview && lesson.lesson_type !== "exercise"}
+              isPreview={isPreview}
+              previewIndex={Number.isNaN(previewIndex) ? 0 : previewIndex}
             />
           ) : (
             <TestStep
@@ -384,6 +390,12 @@ export default async function LessonPage({
       </div>
     </main>
   );
+}
+
+// Lección de práctica oral con avatar: se identifica por el título "Speaking"
+// (mismo criterio que el badge de skill en la página del curso).
+function isSpeakingLesson(lesson: Lesson): boolean {
+  return lesson.lesson_type === "exercise" && lesson.title.trim().toLowerCase() === "speaking";
 }
 
 function normalizeStage(stage?: string): Stage {
@@ -447,6 +459,7 @@ function VideoStep({
       lessonId={lesson.id}
       lessonType={lesson.lesson_type}
       videoUrl={lesson.video_url}
+      thumbnailUrl={typeof lesson.content_json.thumbnail_url === "string" ? lesson.content_json.thumbnail_url : null}
       title={lesson.title}
       nextLessonId={nextLessonId}
     />
@@ -460,7 +473,9 @@ function ExercisesStep({
   lesson,
   progress,
   unitId,
-  videoRequired = true
+  videoRequired = true,
+  isPreview = false,
+  previewIndex = 0
 }: {
   attempts: ExerciseAttempt[];
   courseId: string;
@@ -469,6 +484,8 @@ function ExercisesStep({
   progress: LessonProgress | null;
   unitId: string;
   videoRequired?: boolean;
+  isPreview?: boolean;
+  previewIndex?: number;
 }) {
   if (videoRequired && !progress?.video_completed) {
     return (
@@ -516,8 +533,12 @@ function ExercisesStep({
     [...latestAttempts.entries()].filter(([, a]) => a.passed).map(([id]) => id)
   );
 
-  const currentIdx = exercises.findIndex((e) => !passedIds.has(e.id));
-  const allPassed = currentIdx === -1;
+  // En preview (superadmin) la navegación es libre: el índice viene de la URL y
+  // no avanza por aciertos, así que el progreso se mantiene en 0/N.
+  const currentIdx = isPreview
+    ? Math.min(Math.max(previewIndex, 0), exercises.length - 1)
+    : exercises.findIndex((e) => !passedIds.has(e.id));
+  const allPassed = !isPreview && currentIdx === -1;
 
   // All passed but action hasn't redirected yet (edge case)
   if (allPassed) {
@@ -555,19 +576,24 @@ function ExercisesStep({
             {currentExercise.title}
           </h2>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5 pt-1">
-          {exercises.map((ex, i) => (
-            <div
-              key={ex.id}
-              className={`h-2 w-2 rounded-full transition-colors ${
-                passedIds.has(ex.id)
-                  ? "bg-emerald-500"
-                  : i === currentIdx
-                    ? "bg-[var(--primary)]"
-                    : "bg-[var(--outline-variant)]"
-              }`}
-            />
-          ))}
+        <div className="flex shrink-0 items-center gap-2.5 pt-1">
+          <span className="text-xs font-semibold tabular-nums text-[var(--outline)]">
+            {passedIds.size}/{exercises.length}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {exercises.map((ex, i) => (
+              <div
+                key={ex.id}
+                className={`h-2 w-2 rounded-full transition-colors ${
+                  passedIds.has(ex.id)
+                    ? "bg-emerald-500"
+                    : i === currentIdx
+                      ? "bg-[var(--primary)]"
+                      : "bg-[var(--outline-variant)]"
+                }`}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -592,10 +618,36 @@ function ExercisesStep({
         <ExerciseAnswerControl exercise={currentExercise} previousAttempt={currentAttempt ?? undefined} />
 
         <div className="border-t border-[var(--outline-variant)] pt-6">
-          <Button type="submit">
-            <CheckCircle2 strokeWidth={1.5} size={16} />
-            {currentAttempt && !currentAttempt.passed ? "Try again" : "Submit answer"}
-          </Button>
+          {isPreview ? (
+            <div className="flex items-center justify-between gap-3">
+              <Link
+                aria-disabled={currentIdx === 0}
+                className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container-low)] ${
+                  currentIdx === 0 ? "pointer-events-none opacity-40" : ""
+                }`}
+                href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=exercises&ex=${currentIdx - 1}`}
+              >
+                <ArrowLeft strokeWidth={1.5} size={16} />
+                Previous
+              </Link>
+              <span className="text-xs font-medium text-[var(--outline)]">Preview mode</span>
+              <Link
+                aria-disabled={currentIdx === exercises.length - 1}
+                className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[var(--outline-variant)] px-4 text-sm font-semibold text-[var(--on-surface)] transition-colors hover:bg-[var(--surface-container-low)] ${
+                  currentIdx === exercises.length - 1 ? "pointer-events-none opacity-40" : ""
+                }`}
+                href={`/dashboard/courses/${courseId}/lessons/${lesson.id}?stage=exercises&ex=${currentIdx + 1}`}
+              >
+                Next
+                <ChevronRight strokeWidth={1.5} size={16} />
+              </Link>
+            </div>
+          ) : (
+            <Button type="submit">
+              <CheckCircle2 strokeWidth={1.5} size={16} />
+              {currentAttempt && !currentAttempt.passed ? "Try again" : "Submit answer"}
+            </Button>
+          )}
         </div>
       </form>
     </div>
@@ -1093,11 +1145,43 @@ const MODEL_TEXT_KNOWN_KEYS = new Set([
   "current_employer",
   "responsibilities",
   "previous_employer",
+  "work_experience",
 ]);
+
+type WorkExperienceEntry = {
+  role?: string;
+  dates?: string;
+  company?: string;
+  responsibilities?: string[];
+};
+
+function parseWorkExperience(value: unknown): WorkExperienceEntry[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) return [];
+
+    const entryMap = entry as Record<string, unknown>;
+    return [
+      {
+        role: typeof entryMap.role === "string" ? entryMap.role : undefined,
+        dates: typeof entryMap.dates === "string" ? entryMap.dates : undefined,
+        company: typeof entryMap.company === "string" ? entryMap.company : undefined,
+        responsibilities: Array.isArray(entryMap.responsibilities)
+          ? entryMap.responsibilities.flatMap((r) => (typeof r === "string" ? [r] : []))
+          : undefined
+      }
+    ];
+  });
+}
 
 function ModelTextBlock({ modelText }: { modelText: Record<string, unknown> }) {
   const profile = typeof modelText.profile === "string" ? modelText.profile : null;
-  const education = typeof modelText.education === "string" ? modelText.education : null;
+  const education = Array.isArray(modelText.education)
+    ? modelText.education.flatMap((e) => (typeof e === "string" ? [e] : []))
+    : typeof modelText.education === "string"
+      ? [modelText.education]
+      : [];
   const currentEmployer =
     typeof modelText.current_employer === "string" ? modelText.current_employer : null;
   const responsibilities = Array.isArray(modelText.responsibilities)
@@ -1107,6 +1191,7 @@ function ModelTextBlock({ modelText }: { modelText: Record<string, unknown> }) {
     : [];
   const previousEmployer =
     typeof modelText.previous_employer === "string" ? modelText.previous_employer : null;
+  const workExperience = parseWorkExperience(modelText.work_experience);
 
   const extraEntries = Object.entries(modelText).filter(
     ([k]) => !MODEL_TEXT_KNOWN_KEYS.has(k)
@@ -1115,10 +1200,18 @@ function ModelTextBlock({ modelText }: { modelText: Record<string, unknown> }) {
   return (
     <div className="space-y-3 rounded-sm border-l-4 border-[var(--outline-variant)] bg-[var(--surface-container-low)] py-4 pl-5 pr-4 text-sm leading-6">
       {profile && <p className="italic text-[var(--on-surface)]">{profile}</p>}
-      {education && (
+      {education.length > 0 && (
         <div>
           <p className="font-semibold text-[var(--on-surface)]">Education</p>
-          <p className="text-[var(--on-surface-variant)]">{education}</p>
+          {education.length === 1 ? (
+            <p className="text-[var(--on-surface-variant)]">{education[0]}</p>
+          ) : (
+            <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[var(--on-surface-variant)]">
+              {education.map((e) => (
+                <li key={e}>{e}</li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
       {currentEmployer && (
@@ -1138,6 +1231,28 @@ function ModelTextBlock({ modelText }: { modelText: Record<string, unknown> }) {
         <div>
           <p className="font-semibold text-[var(--on-surface)]">Previous position</p>
           <p className="text-[var(--on-surface-variant)]">{previousEmployer}</p>
+        </div>
+      )}
+      {workExperience.length > 0 && (
+        <div>
+          <p className="font-semibold text-[var(--on-surface)]">Work experience</p>
+          <div className="mt-1 space-y-2">
+            {workExperience.map((entry, i) => (
+              <div key={`${entry.role ?? ""}-${i}`}>
+                <p className="text-[var(--on-surface-variant)]">
+                  {[entry.role, entry.company].filter(Boolean).join(" — ")}
+                  {entry.dates ? ` (${entry.dates})` : ""}
+                </p>
+                {entry.responsibilities && entry.responsibilities.length > 0 && (
+                  <ul className="mt-1 list-disc space-y-0.5 pl-5 text-[var(--on-surface-variant)]">
+                    {entry.responsibilities.map((r) => (
+                      <li key={r}>{r}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
       {extraEntries.map(([key, value]) => {

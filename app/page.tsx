@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { submitCourseRequest } from "@/app/explore-actions";
+import { LandingDemoVideo } from "@/components/landing-demo-video";
 
 type Course = {
   id: string;
@@ -117,10 +118,9 @@ export default async function LandingPage({
         <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
           {/* Left: editorial thesis */}
           <div>
-            <span className="ds-eyebrow">Aprendizaje de idiomas con IA</span>
             <h1 className="font-display mt-5 text-4xl font-bold leading-[1.05] tracking-tight text-[var(--on-surface)] sm:text-5xl lg:text-6xl">
-              Un profesor de idiomas
-              <span className="text-[var(--primary)]"> que nunca cierra</span>.
+              Tu profesor de idiomas
+              <span className="text-[var(--primary)]"> 24/7</span>.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-8 text-[var(--on-surface-variant)]">
               Conversa, equivócate y corrige al instante con un asistente IA disponible 24/7.
@@ -157,7 +157,7 @@ export default async function LandingPage({
           <div className="lesson-exchange" aria-label="Ejemplo de conversación con el profesor IA">
             <div className="lesson-exchange-head">
               <Brain size={18} strokeWidth={1.5} />
-              <span className="font-display text-sm font-semibold">Tu profesor IA</span>
+              <span className="font-display text-sm font-semibold">Glossi</span>
               <span className="lesson-exchange-status">En línea</span>
             </div>
             <div className="lesson-exchange-body">
@@ -166,7 +166,7 @@ export default async function LandingPage({
                 Yesterday I go to the conference and speak with three clients.
               </p>
               <p className="lesson-bubble lesson-bubble-tutor">
-                <span className="lesson-bubble-label">Profesor IA</span>
+                <span className="lesson-bubble-label">Glossi</span>
                 Casi perfecto. En pasado decimos{" "}
                 <span className="lesson-correction">I went</span> y{" "}
                 <span className="lesson-correction">spoke</span>. ¿Lo intentas otra vez?
@@ -184,9 +184,9 @@ export default async function LandingPage({
           </div>
         </div>
 
-        {/* Demo video placeholder */}
+        {/* Demo video */}
         <div className="mx-auto mt-16 max-w-4xl">
-          <VideoPlaceholder label="Vídeo de demostración de la plataforma" tall />
+          <LandingDemoVideo src="/videos/GlossaAI_Landing.mp4" />
         </div>
       </section>
 

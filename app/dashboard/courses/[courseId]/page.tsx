@@ -56,6 +56,7 @@ type Lesson = {
   sort_order: number;
   video_url: string | null;
   pdf_url: string | null;
+  content_json: Record<string, unknown>;
   requires_exam: boolean;
   minimum_score_to_pass: number | string | null;
   exercises: Array<{ count: number }>;
@@ -134,7 +135,7 @@ export default async function CoursePage({
     admin
       .from("units")
       .select(
-        "id, title, description, sort_order, lessons(id, title, description, lesson_type, sort_order, video_url, pdf_url, requires_exam, minimum_score_to_pass, exercises(count))"
+        "id, title, description, sort_order, lessons(id, title, description, lesson_type, sort_order, video_url, pdf_url, content_json, requires_exam, minimum_score_to_pass, exercises(count))"
       )
       .eq("course_id", courseId)
       .order("sort_order")
@@ -296,6 +297,11 @@ export default async function CoursePage({
                       lessonId={videoLesson.id}
                       lessonType={videoLesson.lesson_type}
                       videoUrl={videoLesson.video_url}
+                      thumbnailUrl={
+                        typeof videoLesson.content_json.thumbnail_url === "string"
+                          ? videoLesson.content_json.thumbnail_url
+                          : null
+                      }
                       title={videoLesson.title}
                       nextLessonId={skillLessons[0]?.id ?? null}
                       locked={!unitIsUnlocked}

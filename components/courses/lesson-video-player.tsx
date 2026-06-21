@@ -13,6 +13,7 @@ export function LessonVideoPlayer({
   lessonId,
   lessonType,
   videoUrl,
+  thumbnailUrl = null,
   title,
   nextLessonId,
   locked = false
@@ -22,6 +23,7 @@ export function LessonVideoPlayer({
   lessonId: string;
   lessonType: string;
   videoUrl: string | null;
+  thumbnailUrl?: string | null;
   title: string;
   nextLessonId: string | null;
   locked?: boolean;
@@ -110,8 +112,16 @@ export function LessonVideoPlayer({
         <button
           type="button"
           onClick={() => setIsPlaying(true)}
-          className="group relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-md border border-[var(--outline-variant)] bg-black"
+          className="group relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-md border border-[var(--outline-variant)] bg-[var(--surface-container-high)]"
         >
+          {thumbnailUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={thumbnailUrl}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+          )}
           <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--primary)] text-[var(--on-primary)] shadow-[0_14px_36px_rgba(42,111,151,0.30)] transition-transform group-hover:scale-105">
             <Play size={24} strokeWidth={1.5} className="translate-x-0.5" />
           </span>
@@ -140,16 +150,16 @@ export function LessonVideoPlayer({
       )}
 
       {isPlaying && embedUrl ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white p-4">
           <button
             type="button"
             onClick={() => setIsPlaying(false)}
             aria-label="Close video"
-            className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+            className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-[var(--on-surface)] transition-colors hover:bg-black/10"
           >
             <X size={20} />
           </button>
-          <div className="aspect-video w-full max-w-5xl overflow-hidden rounded-md bg-black">
+          <div className="aspect-video w-full max-w-5xl overflow-hidden rounded-md border border-[var(--outline-variant)] bg-black shadow-[0_14px_36px_rgba(0,0,0,0.12)]">
             <iframe
               ref={iframeRef}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

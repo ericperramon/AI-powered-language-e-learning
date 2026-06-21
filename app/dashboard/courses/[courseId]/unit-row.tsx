@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CheckCircle2, ChevronDown, Lock } from "lucide-react";
 
 export function UnitRow({
@@ -21,10 +21,21 @@ export function UnitRow({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
+  const anchorId = `unit-${unit.sort_order}`;
+
+  // Abre la unidad si se llega con el ancla #unit-N (p. ej. desde el sidebar).
+  // Solo en cliente tras montar, para no provocar hydration mismatch.
+  useEffect(() => {
+    if (!locked && window.location.hash === `#${anchorId}`) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- sincroniza una vez con el hash de la URL (estado externo del navegador)
+      setOpen(true);
+    }
+  }, [anchorId, locked]);
 
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-sm transition-opacity ${locked ? "opacity-60" : ""}`}
+      id={anchorId}
+      className={`scroll-mt-20 overflow-hidden rounded-2xl border border-[var(--outline-variant)] bg-[var(--surface-container-lowest)] shadow-sm transition-opacity ${locked ? "opacity-60" : ""}`}
     >
       <button
         type="button"
@@ -51,14 +62,14 @@ export function UnitRow({
           )}
         </div>
 
-        {/* Title + subtitle — swapped when open */}
+        {/* Title + description */}
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-bold leading-tight text-[var(--on-surface)]">
-            {open ? unit.title : `Unit ${unit.sort_order}`}
+            {unit.title}
           </p>
-          <p className="truncate text-sm text-[var(--on-surface-variant)]">
-            {open ? `Unit ${unit.sort_order}` : unit.title}
-          </p>
+          {unit.description && (
+            <p className="truncate text-sm text-[var(--on-surface-variant)]">{unit.description}</p>
+          )}
         </div>
 
         {/* Progress pill + chevron */}
